@@ -253,10 +253,10 @@ if( (BZalpha<0.0) || (BZalpha>1.0))
 	}
 bool output_patterns=true;	//---should we print out the 2-part correlation function?
 
-//------------------------- TAKE INPUT irho_target and use it to determine chemical potential ------------
+//----- TAKE INPUT irho_target and use it to determine chemical potential ---------
 
-//-----@@@@@@@ altered startup condition begins here.
-/*
+//-----altered startup condition begins here.
+
 if( (TASKID >= 1)  && (TASKID <= 10)  )
 	{
 	irho_target=155;
@@ -274,13 +274,16 @@ else
 	cout << "\n ERROR: TASKID outside of bounds. exiting.\n";
 	exit(1);
 	}
-*/
 
+/****************************************************
 if ( TASKID != 2 && TASKID != 4 && TASKID != 7 )
 	{
 	cout << "\n ERROR: TASKID outside of bounds. exiting.\n";
 	exit(1);
 	} 
+******************************************************/
+
+
 
 double tl,tu;	//---upper and lower bounds of the time necessary for convergence
 		//---using punish/reward schemes respectively.
