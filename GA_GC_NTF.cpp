@@ -255,12 +255,13 @@ bool output_patterns=true;	//---should we print out the 2-part correlation funct
 
 //----- TAKE INPUT irho_target and use it to determine chemical potential ---------
 
-//-----altered startup condition begins here.
+//-----altered startup condition begins here.--------------------------------------------------------------------------
 
-if( (TASKID >= 1)  && (TASKID <= 10)  )
+if( (TASKID >= 1)  && (TASKID <= 100)  )
 	{
 	irho_target=155;
 	}
+/*-------------temporary fix to ensure we only sample the HNG155 run
 else if( (TASKID >= 11)  && (TASKID <= 20)  )
 	{
 	irho_target=165;
@@ -269,11 +270,21 @@ else if( (TASKID >= 21)  && (TASKID <= 30)  )
 	{
 	irho_target=180;
 	}
+*/
 else
 	{
 	cout << "\n ERROR: TASKID outside of bounds. exiting.\n";
 	exit(1);
 	}
+///@@@@@@@DELETE THIS 
+if(NGtype!="HNG")
+	{
+	cout << "\n ERROR: this is supposed to be a HNG 155 run.\n";
+	exit(1);
+	}
+//-------- DOWN TO HERE ------
+
+//@@@ irho_target  = irho_target + 5*(TASKID-1); 
 
 /****************************************************
 if ( TASKID != 2 && TASKID != 4 && TASKID != 7 )
@@ -283,12 +294,9 @@ if ( TASKID != 2 && TASKID != 4 && TASKID != 7 )
 	} 
 ******************************************************/
 
-
-
 double tl,tu;	//---upper and lower bounds of the time necessary for convergence
 		//---using punish/reward schemes respectively.
 double ltf;	//---log of the final time. This is just a dummy temp variable.
-
 
 if(boltzmann_on_removal)
 	{
@@ -322,17 +330,13 @@ else if(boltzmann_on_addrem_intermed)
 		{
 		tl=0.8;
 		}
-
 	ltf = gsl_sf_log(tl) + BZalpha* ( gsl_sf_log(tu) - gsl_sf_log(tl) );
 	tf  = gsl_sf_exp(ltf);
 	cout << "\n With intermediate Boltzmann condition alpha = " << BZalpha << ", tf is set to " << tf << endl;
 
 	}
 
-
-irho_target  = irho_target + 5*(TASKID-1); 
-
-//-----@@@@@@@=====altered startup condition ends here.-------
+//----- altered startup condition ends here.--------------------------------------------------------------------------
 
 
 CGF=double(kHNG_exact)/double(kHNG_CG);
@@ -414,8 +418,8 @@ if(Llim/2 <= ceil(NNRANGE_full/CGF) )
 	
 if( ((NNRANGE_full/CGF)/2) <= m && TFs_allowed )
 	{
-	*log << "\n ERROR! TF width is too long for this code: we assume m<NNrange/2 \n";
-	cout << "\n ERROR! TF width is too long for this code: we assume m<<NNrange/2 \n";
+	*log << "\n ERROR! TF width is too long for this code: we assume m << NNrange/2 \n";
+	cout << "\n ERROR! TF width is too long for this code: we assume m << NNrange/2 \n";
 	(*log).close(); exit(1); 
 	}
 	

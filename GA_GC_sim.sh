@@ -1,7 +1,7 @@
 #!/bin/bash
 #$ -cwd
-#$ -l h_vmem=1G,s_rt=22:0:0
-#$ -t 1-7
+#$ -l h_vmem=1G,s_rt=18:0:0
+#$ -t 1-3
 #$ -m eas
 #
 # The lines above are instructions to SGE.
@@ -15,7 +15,7 @@
 
 NGtype="HNG"
 
-WORKDIR=./bpj_patternsearch_HIGHRUNNUM_${NGtype}/job.${SGE_TASK_ID}
+WORKDIR=./NAR_longpattern_HNG155_${NGtype}/job.${SGE_TASK_ID}
 
 # create a local directory for this job only
 if [ ! -e $WORKDIR ]; then

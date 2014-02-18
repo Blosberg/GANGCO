@@ -20,7 +20,7 @@
 
 using namespace std;
 
-const bool fixed_ref       = true;	//--Is the +1 nucleosome hard-coded at its position?
+
 const bool TFs_allowed     = false; 	//--are TFs allowed in this simulation?
 const bool debugging       = false; 	//-- are we just doing a dummy run for debugging purposes?
 const bool output_timecorr = false; 	//-- should we be printing the time-lagged correlation for different TFs?
@@ -31,11 +31,15 @@ const bool choose_carefully = true;	//do we sum over the rates again every time 
 
 const bool get_voiddist_equilibrium = true;
 
+
+const bool fixed_ref       = true;	//--Is the +1 nucleosome hard-coded at its position?
+					// BELOW: ARE THERE *OTHERS* that are also fixed in place?
+
 const bool set_fixed_initial = false;   // -- if true, then we set an initial set of particles 
 					//  to be fixed in place without the possibility of removal,
 					//  other particles coming after that bind reversibly.
 
-const bool calculate_entropy = true; 	// if true, then count configurations at every  
+const bool calculate_entropy = false; 	// if true, then count configurations at every  
 					// time point, for every iteration. 
 
 const int kHNG_exact=147; //---this should be true in general.
