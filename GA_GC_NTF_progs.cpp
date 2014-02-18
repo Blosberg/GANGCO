@@ -1,26 +1,14 @@
 /*----- GA_GC_NTF_progs.cpp: functions/subroutines for the grand-canonical nucleosome gillespie algorithm.-----
-// ---last updated on  Thu Jan 9 12:42:40 CET 2014  by  Brendan.Osberg  at location  th-ws-e537
+// ---last updated on  Tue Feb 18 18:27:29 CET 2014  by  Brendan.Osberg  at location  th-ws-e537
+
+//  changes from  Tue Feb 18 18:27:29 CET 2014 : implemented simplified run for small particles. Tested, works.
 
 //  changes from  Thu Jan 9 12:42:40 CET 2014 : additional collection series for the 2-point correlation function: gathering curves during transient filling process now in addition to during equilibrium.
 
-//  changes from  Mon Dec 23 18:48:28 CET 2013 : added alpha option for intermediate Boltzmann application
+//  STARTED FROM SCRATCH BUILDING CODE FOR SMALL PARTICLES -SOME FEATURES WERE KEPT, SOME WERE AXED.
 
-//  changes from  Fri Nov 29 10:52:02 CET 2013 : added remod_cand. function and int min_dist to GAdata; this way remodellers know when they've hit neighbours for the case of HNG.
-
-//  changes from  Thu Nov 21 16:44:04 CET 2013 : ran valgrind to clear up some sloppy memory management, open file containers, etc. should be clean now.
-
-//  changes from  Thu Nov 21 15:19:10 CET 2013 : initialized plotnum_kymo to start at 0
-
-//  changes from  Thu Nov 14 17:31:24 CET 2013 : fixed a read-off-array-end seg-fault on the VNN array in the GAdata constructor
-
-//  changes from  Fri Nov 8 15:32:37 CET 2013 : Now takes a p-ordered list of configurations and outputs the first 100 to check how good our statistics are
-
-//  changes from  Wed Nov 6 15:36:19 CET 2013 : Implemented configuration sampling at the t_filling time points. Also allowed for set_fixed distribution to initialize the array.
-
-//  changes from  Tue Nov 5 13:57:03 CET 2013 : Made the VNN potential infinite up to k_HNG_CG for the hard-core case (gets accessed only for the entropy calculation)
-
-========================================================================================================
-------------------------------------------------------------------------------------------------------*/
+===========================================================================================
+-----------------------------------------------------------------------------------------*/
 
 #include <fstream>   
 #include <iostream>  
@@ -35,8 +23,9 @@
 //#include <bren_lib.h>
 
 #include <gsl/gsl_rng.h>
-int VNN_SNG_calc(double * potential,const int w, const double E0);
-int VNN_LNG_calc(double * potential,const int w, const double E0);
+int VNN_SNG_calc_smallp(double * potential, const int a, const double E0);
+int VNN_LNG_calc_smallp(double * potential, const int a, const double E0);
+
 
 int coarse_grain(const double * Vin_full, double * xcoarse, double * Vout_coarse, const int L, const int p, const double CGF); //--coarse-grain the 2-body interaction potential into a smaller system.
 
@@ -64,15 +53,15 @@ GAdata::GAdata(const double *energetics, const int* observations, const double* 
 {  // constructor
 int x,i,j;
 //-----------SIZES AND RANGES-----------
-   m                 = sizes_n_ranges[0];
-   int w_softwidth   = sizes_n_ranges[1];
-   kHNG_CG           = sizes_n_ranges[2];
-   int NNRANGE_full  = sizes_n_ranges[3];	//the range in units of uncoarsened lattice sites.
-   RMrange           = sizes_n_ranges[4];
-   int NTFRANGE_full = sizes_n_ranges[5];
-   Llim              = sizes_n_ranges[6];
+   int a_softlength   = sizes_n_ranges[0];
+   kHNG               = sizes_n_ranges[1];
+ 	//the range in units of uncoarsened lattice sites.
+   RMrange            = sizes_n_ranges[2];
+   Llim               = sizes_n_ranges[3];
 
    M    = 8*Llim;	// the number of possible reactions -- most of which will have 0 amplitude
+
+   NNRANGE           = a_softlength;
 //------------RATES---------------------
    ks_N       =  k_rates[0];
    ka_N       =  k_rates[1];
@@ -101,13 +90,12 @@ int x,i,j;
    total_obs_eq       = observations[4];	//---- ""	""	""	equilibrium 	""
    nbins              = observations[5];
 //------------ENERGETICS----------------
-   double muN_original      =  energetics[0];   //---this is the genuince muN -it gets coarse-grained here.
-   muTF0         =  energetics[1];
-   muTF1         =  energetics[2];
-   muTF_nonspec  =  energetics[3];
-   E0            =  energetics[4];
-   CGF           =  energetics[5];
-   BZalpha       =  energetics[6] ;//----the boltzmann alpha value that defines the ratio between addition and removal.
+   muN0          =  energetics[0];   //---this is the genuine muN 
+   muTF0 	 =  energetics[1];
+   E0            =  energetics[2];
+   BZalpha       =  energetics[3];   //--- the boltzmann alpha value 
+				     //--- that defines the ratio 
+				     //--- between addition and removal.
 
 //--------------------------------------
 if( int(boltzmann_on_uphill) + int(  boltzmann_on_add ) + int(boltzmann_on_removal) + int(boltzmann_on_addrem_intermed)  != 1)
@@ -122,6 +110,7 @@ if( int(boltzmann_on_uphill) + int(  boltzmann_on_add ) + int(boltzmann_on_remov
 
 counter = 0;
 flag = 0;
+CGF=1.0;
 
 //---the number of times that we have made observations of :--------------------------
 obs_count_eq_2pc	=0;	// ---- the equilibrium 2 particle correlation funciton.
@@ -178,7 +167,7 @@ for(i=0;i<total_obs_filling;i++)
 
 already_warned = false;
 
-//-------------------THESE ARE ALL TF-TF CORRELATION PARAMETERS----------------------------------
+//--------------- THESE ARE ALL TF-TF CORRELATION PARAMETERS ------------------------
 bindeventnum_F0 = 0;
 bindeventnum_F1 = 0;
 
@@ -197,10 +186,10 @@ for(i=0;i<nbins;i++)
 	testing_olap_y[i]=0.0;
 	}
 
-F0    =  F[0];
-F1    =  F[1];
+F0    =  1;
+F1    =  2;	//just made up numbers for now.
 
-//-------------------THESE ARE ALL FILLING DYNAMICS PARAMETERS----------------------------------
+//--------------  THESE ARE ALL FILLING DYNAMICS PARAMETERS ---------------------
 
 filling_frac = new double[total_obs_filling];
 for(i=0;i<total_obs_filling;i++)
@@ -222,18 +211,21 @@ obs_count_filling=0;	//--- the index of the time-snapshot that is
 
 //------------------- NOW GET THE POTENTIALS ----------------------------------
 
-double * VNN_full = new double[NNRANGE_full+1];
+double * VNN_full = new double[NNRANGE+1];
 xcoarse  = new double[Llim]; for(i=0;i<Llim;i++){xcoarse[i]=0.0;}
 
 if(SNG)
 	{
 	min_dist=1;
-	VNN_SNG_calc(VNN_full, w_softwidth, E0);
+	min_dist=1;
+	VNN_SNG_calc_smallp(VNN_full, a_softlength, E0);
+
+	exit(1);
 	}
 else if(LNG)
 	{
 	min_dist=1;
-	VNN_LNG_calc(VNN_full, w_softwidth, E0);
+	VNN_LNG_calc_smallp(VNN_full, a_softlength, E0);
 	}
 else
 	{
@@ -246,12 +238,12 @@ else
 		exit(1);
 		}
 
-	min_dist=kHNG_CG;	//--  The minimum possibile distance between adjacent particles. 
+	min_dist=kHNG;	//--  The minimum possibile distance between adjacent particles. 
 				//--  Prevent remodellers from violating this. 
 
-	for(i=0;i<=NNRANGE_full;i++)
+	for(i=0;i<=NNRANGE;i++)
 		{
-		if(i<kHNG_exact) //---the coarse-graining comes later.
+		if(i<kHNG) //---the coarse-graining comes later.
 			{
 			VNN_full[i]=(1/0.0);
 			}
@@ -267,20 +259,26 @@ else
 //------- whatever the type, we now have the potential. the next step (coarse-graining) 
 //------- is independent of type.
 
-NNRANGE =ceil(NNRANGE_full/CGF);
-VNN = new double[Llim]; //--most of these will just be zero, and never get used.
-coarse_grain(VNN_full, xcoarse, VNN, Llim, NNRANGE_full, CGF);
- //--coarse-grain the 2-body interaction potential into a smaller system.
-NTFRANGE  = ceil(NTFRANGE_full/CGF);
+VNN       = new double[Llim]; //--most of these will just be zero, and never get used.
+for(i=0;i<Llim;i++)
+	{
+	if (i< NNRANGE+1 )
+		{
+		VNN[i] = VNN_full[i];
+		}
+	else
+		{
+		VNN[i] = 0.0;
+		}
+	}
 
-double * VNTF_full = new double[NTFRANGE_full]; 
-VNTF_calc(VNTF_full,w_softwidth, E0);
 VNTF = new double[Llim]; //--most of these will just be zero, and never get used.
-coarse_grain(VNTF_full, xcoarse, VNTF, Llim, NTFRANGE_full, CGF);
-//--coarse-grain the 2-body interaction potential into a smaller 
+for(i=0;i<Llim;i++)
+	{
+	VNTF[i]=0.0;
+	}
 
 delete [] VNN_full;
-delete [] VNTF_full;
 
 
 //---------------------------------------------------------------------------------
@@ -298,8 +296,6 @@ plotnum = 0;	// the "current" plot starts at zero, naturally.
 
 log = log_in;
 timestamps=timestamps_in;
-
-muN0 = muN_original + gsl_sf_log(CGF); //---scale the effective chemical potential according to the coarse-graining.
 
 
 //------------------ NOW SET YOUR POINTERS PROPERLY ----------------------------
@@ -794,13 +790,6 @@ int i, min, max;
 
 bindevent Q;  Q.t = t;  Q.species = 1;  Q.onoroff = -1;
 
-if( output_timecorr ) 
-	{
-	if( (x==F0) || (x==F1) )
-		{
-		pos[x].event_list.push(Q); // push the stack on where it's leaving from
-		}
-	}
 //------------------REMODELLING SITE INCREMENT-------------------------
 int n=0;
 
@@ -897,14 +886,6 @@ int GAdata::add_Nuc( int x)
 int i, min, max;
 bindevent Q; Q.t = t;  Q.species = 1;  Q.onoroff = 1;
 
-if( output_timecorr ) 
-	{
-	if( (x==F0) || (x==F1) )
-		{
-		pos[x].event_list.push(Q);
-		}
-	}
-
 int pR = pos[x].part_right;
 int pL = pos[x].part_left;
 
@@ -991,20 +972,6 @@ int pL = pos[x].part_left;
 int i, min, max;
 
 bindevent Q;  Q.t = t;  Q.species = 1;  Q.onoroff = -1;
-
-if( output_timecorr ) 
-	{
-
-	if( (x==F0) || (x==F1) )
-		{
-		pos[x].event_list.push(Q); // push the stack on where it's leaving from
-		}
-	Q.onoroff = 1;
-	if( (xp==F0) || (xp==F1) )
-		{
-		pos[xp].event_list.push(Q); // push the stack on where it's going to.
-		}
-	}
 
 //------------------REMODELLING SITE INCREMENT MOVING x LEFT TO xp-------------------------
 //-----bookkeeping for whether the number of eligible remodeller pairs has changed through this reaction (on either side of x).
@@ -1095,19 +1062,6 @@ int i, min, max;
 
 bindevent Q;  Q.t = t;  Q.species = 1;  Q.onoroff = -1;
 
-if( output_timecorr ) 
-	{
-	if( (x==F0) || (x==F1) )
-		{
-		pos[x].event_list.push(Q); // push the stack on where it's leaving from
-		}
-
-	Q.onoroff = 1;
-	if( (xp==F0) || (xp==F1) )
-		{
-		pos[xp].event_list.push(Q); // push the stack on where it's going to.
-		}
-	}
 //------------------REMODELLING SITE INCREMENT-------------------------
 //-----bookkeeping for whether the number of eligible remodeller pairs has changed through this reaction (on either side of x).
 
@@ -1202,16 +1156,6 @@ if(bind_irrev || pos[x].permanent)
 
 
 bindevent Q;  Q.t = t;  Q.species = 2;  Q.onoroff = -1;
-
-if( output_timecorr ) 
-	{
-
-	if( (x==F0) || (x==F1) )
-		{
-		pos[x].event_list.push(Q); // push the stack on where it's leaving from
-		}
-	}
-
 
 if( pos[x].state != 2)
 	{
@@ -1323,13 +1267,7 @@ int pR = pos[x].part_right;
 
 bindevent Q;  Q.t = t;  Q.species = 2;  Q.onoroff = 1;
 
-if( output_timecorr ) 
-	{
-	if( (x==F0) || (x==F1) )
-		{
-		pos[x].event_list.push(Q); // push the stack on where it's leaving from
-		}
-	}
+
 //------------------REMODELLING SITE INCREMENT-------------------------
 int n=0;
 if( remod_cand(pL,pR) && pos[pL].state==1 && pos[pR].state==1   )
@@ -1415,20 +1353,6 @@ int n=0;//---must stay zero for this reaction.
 bindevent Q;  Q.t = t;  Q.species = 2;  Q.onoroff = -1;
 
 
-if( output_timecorr ) 
-	{
-
-	if( (x==F0) || (x==F1) )
-		{
-		pos[x].event_list.push(Q); // push the stack on where it's leaving from
-		}
-
-	Q.onoroff = 1;
-	if( (xp==F0) || (xp==F1) )
-		{
-		pos[xp].event_list.push(Q); // push the stack on where it's going to.
-		}
-	}
 //----------UPDATE STATE AND START OCCUPATION TIMER-------
 
 if( ( pos[xp].state != 0) || (pos[x].state != 2))	// error flag
@@ -1525,20 +1449,6 @@ int i, min, max;
 int n=0;//---must stay zero for this reaction.
 
 bindevent Q;  Q.t = t;  Q.species = 2;  Q.onoroff = -1;
-
-if( output_timecorr ) 
-	{
-	if( (x==F0) || (x==F1) )
-		{
-		pos[x].event_list.push(Q); // push the stack on where it's leaving from
-		}
-
-	Q.onoroff = 1;
-	if( (xp==F0) || (xp==F1) )
-		{
-		pos[xp].event_list.push(Q); // push the stack on where it's going to.
-		}
-	}
 
 if( (pos[xp].state != 3) || (pos[x].state != 2))	// error flag
 	{
@@ -1993,7 +1903,7 @@ switch( type)
 	case 0:
 		//---------------------|<------------------> <------>
 		//---------------------|==============|     x       |==============|
-	   if (  (distance(pos[x].part_left,x) < kHNG_CG &&  neighbours[0] ==1 ) || ( (distance(x,pos[x].part_right) < kHNG_CG) )   )
+	   if (  (distance(pos[x].part_left,x) < kHNG &&  neighbours[0] ==1 ) || ( (distance(x,pos[x].part_right) < kHNG) )   )
 		{
 		new_a_addN  = 0.0;
 		}
@@ -2002,7 +1912,7 @@ switch( type)
 		new_a_addN  = ka_N*k_E( -muN(x) ); //---always weight mu on addition.
 		}
 
-	   if( (distance(x,pos[x].part_right) < m) || ( distance(pos[x].part_left,x) < kHNG_CG &&  neighbours[0] ==1 ) || (!TFs_allowed) )
+	   if( (distance(x,pos[x].part_right) < m) || ( distance(pos[x].part_left,x) < kHNG &&  neighbours[0] ==1 ) || (!TFs_allowed) )
 		{
 		new_a_addTF =0.0;
 		}
@@ -2025,14 +1935,14 @@ switch( type)
 
 	new_a_removeN  = ka_N*1.0;
 
-	if ( distance(pos[x].part_left,x) < kHNG_CG || distance(x,pos[x].part_right) < kHNG_CG )
+	if ( distance(pos[x].part_left,x) < kHNG || distance(x,pos[x].part_right) < kHNG )
 		{
 		flag=131429;
 		process_error( x );
 		}
 
 
-	if( (distance(pos[x].part_left,x) <= kHNG_CG &&  neighbours[0] ==1 ) ||  pos[left(x)].state !=0 )
+	if( (distance(pos[x].part_left,x) <= kHNG &&  neighbours[0] ==1 ) ||  pos[left(x)].state !=0 )
 		{
 		new_a_sNL = 0.0;
 		}
@@ -2041,7 +1951,7 @@ switch( type)
 		new_a_sNL = ks_N*gsl_sf_exp( -1.0 * max ( muN(left(x))- muN(x) , 0  )  );
 		}
 
-	if(  distance(x,pos[x].part_right) <= kHNG_CG)    
+	if(  distance(x,pos[x].part_right) <= kHNG)    
 		{
 		new_a_sNR = 0.0;
 		}
@@ -2060,7 +1970,7 @@ switch( type)
 	
 	case 2://---------------------Transcription factor------------------------------
 
-	if( (distance(pos[x].part_left,x) <= kHNG_CG &&  neighbours[0] ==1 ) ||  pos[left(x)].state !=0 )
+	if( (distance(pos[x].part_left,x) <= kHNG &&  neighbours[0] ==1 ) ||  pos[left(x)].state !=0 )
 		{
 		new_a_sTFL = 0.0;
 		}
@@ -2069,7 +1979,7 @@ switch( type)
 		new_a_sTFL = ks_TF*gsl_sf_exp( -1.0 * max ( muTF(left(x))- muTF(x) , 0  )  );
 		}
 
-	if(  distance(x,pos[x].part_right) <= kHNG_CG)    
+	if(  distance(x,pos[x].part_right) <= kHNG)    
 		{
 		new_a_sNR = 0.0;
 		}
@@ -2868,7 +2778,7 @@ else
    p2p = distance(ref_point,pos[ref_point].part_right );
 
    if(HNG)
-     {void_size=p2p-kHNG_CG;}
+     {void_size=p2p-kHNG;}
    else if(SNG||LNG)
      {void_size=p2p-1;}
 
@@ -2888,7 +2798,7 @@ else
  	p2p       = distance(ref_point,pos[ref_point].part_right );
 
 	if(HNG)
-	    {void_size=p2p-kHNG_CG;}
+	    {void_size=p2p-kHNG;}
 	else if(SNG||LNG)
 	    {void_size=p2p-1;}
 		
@@ -2944,7 +2854,7 @@ else
    p2p = distance(ref_point,pos[ref_point].part_right );
 
    if(HNG)
-     {void_size=p2p-kHNG_CG;}
+     {void_size=p2p-kHNG;}
    else if(SNG||LNG)
      {void_size=p2p-1;}
 
@@ -2964,7 +2874,7 @@ else
  	p2p       = distance(ref_point,pos[ref_point].part_right );
 
 	if(HNG)
-	    {void_size=p2p-kHNG_CG;}
+	    {void_size=p2p-kHNG;}
 	else if(SNG||LNG)
 	    {void_size=p2p-1;}
 		
@@ -3412,6 +3322,28 @@ else
 
 return result;
 }
+//*****************************************************************
+int VNN_SNG_calc_smallp(double * potential, const int a, const double E0)
+{// potential has allocated size [NNRANGE_full+1], ( NNRANGE_full =2*w), hence 2*w+1
+
+cout << "\n ERROR: still have to code for this option.";
+exit(1);
+
+return 1;
+}
+//*****************************************************************
+int VNN_LNG_calc_smallp(double * potential, const int a, const double E0)
+{// potential has allocated size [NNRANGE_full+1], ( NNRANGE_full =2*w), hence 2*w+1
+
+int n=0;
+for(n=0 ; n<a ; n++) //the max value is (a-1), and there the potential becomes zero.
+	{
+	potential[n] = (a-(n+1))*E0;
+	}
+
+return 1;
+}
+
 //****************************************************************************
 
 int GAdata::check_rates( void )

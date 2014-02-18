@@ -1,16 +1,12 @@
 /*  -----GA_GC_NTF.h - defines the classes and structs and declares some of the functions for the GC GA
-// ---last updated on  Thu Jan 9 12:42:40 CET 2014  by  Brendan.Osberg  at location  th-ws-e537
+// ---last updated on  Tue Feb 18 18:27:29 CET 2014  by  Brendan.Osberg  at location  th-ws-e537
+
+//  changes from  Tue Feb 18 18:27:29 CET 2014 : implemented simplified run for small particles. Tested, works.
 
 //  changes from  Thu Jan 9 12:42:40 CET 2014 : additional collection series for the 2-point correlation function: gathering curves during transient filling process now in addition to during equilibrium.
 
-//  changes from  Fri Nov 29 10:52:02 CET 2013 : added remod_cand. function and int min_dist to GAdata; this way remodellers know when they've hit neighbours for the case of HNG.
 
-//  changes from  Thu Nov 21 16:44:04 CET 2013 : ran valgrind to clear up some sloppy memory management, open file containers, etc. should be clean now.
-
-//  changes from  Wed Nov 6 15:36:19 CET 2013 : Implemented configuration sampling at the t_filling time points. Also allowed for set_fixed distribution to initialize the array.
-
-//  changes from  Tue Oct 15 10:45:34 CEST 2013 : Added a class structure for the configuration of the system
-
+//  STARTED FROM SCRATCH BUILDING CODE FOR SMALL PARTICLES -SOME FEATURES WERE KEPT, SOME WERE AXED.
 -------------------------------------------------------------------------------------------------*/
 
 
@@ -23,7 +19,6 @@ using namespace std;
 
 const bool TFs_allowed     = false; 	//--are TFs allowed in this simulation?
 const bool debugging       = false; 	//-- are we just doing a dummy run for debugging purposes?
-const bool output_timecorr = false; 	//-- should we be printing the time-lagged correlation for different TFs?
 
 const bool bind_irrev      = false;	// do particles bind irreversibly? if so, then k_off always = 0.
 
@@ -41,8 +36,6 @@ const bool set_fixed_initial = false;   // -- if true, then we set an initial se
 
 const bool calculate_entropy = false; 	// if true, then count configurations at every  
 					// time point, for every iteration. 
-
-const int kHNG_exact=147; //---this should be true in general.
 
 /********************************************************************/
 struct bindevent
@@ -152,25 +145,21 @@ bool boltzmann_on_addrem_intermed;
 
 double BZalpha;
 //-----this condition is now read in from file.
-
 int h0, h1, h2;
 int F0, F1;  // F0, F1 are now the locations of the two transcription factors directly. 
 			//--see figure in main program.
 
-double muN0, muN1, muN2;
+double muN0;
 double *muNarray; //----the array of ALL values of the chemical potential.
-double muTF0, muTF1, muTF_nonspec;
+double muTF0;
 int Llim;
 int M;
-int kHNG_orig;
-int kHNG_CG;
-
+int kHNG;
 
 double *VNN;		//---effective VNN, after coarse-graining.
 double *VNTF;
 
 double *xcoarse;
-double CGF; //--the Coarse Graining Factor
 
 public: 
 bool krm_b;	// 1- remodellers are present
@@ -185,6 +174,7 @@ int NTFRANGE;	//----" 	"	"    N-TF interaction
 
 int min_dist;	//---the minimum possible distance between adjacent particles. This is 1 for LNG and SNG, but 147 for HNG.
 
+double CGF;
 
 double* tpoints_filling; //--- these are time points used to take the filling fraction through the transient period 
 			 //--- (should usually by logarithmically spaced.)
@@ -262,11 +252,14 @@ int check_states( void );
 int reset_prevnext_pointers();
 
 bool already_warned;
+
 //------------ the observables -------------------------------
+
 	int increment_void_histogram( int ** void_hist);
 	int increment_void_histogram_equilibrium(int* void_hist);
 
-	//----FILLING RATES-----------
+//----FILLING RATES-----------
+
 	double * filling_frac;	// the array of filling fractions at various time points
 	int get_filling_frac(void);
 
@@ -276,10 +269,9 @@ bool already_warned;
 
 	int grab_current_configuration( config_set_t & C_t);
 
-	//-------
+//----------------------------
 	int increment_2_part_corr( int timepoint ); // done many times during the run.
 	int normalize_2_part_corr(void );	// done at the end of each run.
-	bool output_timecorr;
 
 	double *  two_part_corr_eq;		// two-particle correlation at equilibrium.
 	int       num_times_2pc_eq_incremented; // which has been incremented this many times.
@@ -301,11 +293,13 @@ bool already_warned;
 
 	//-------  TF time-averaged occupancy stuff   ----------
 	int bindeventnum_F0;
-	int bindeventnum_F1;
+        int bindeventnum_F1;
 
-	bindevent * event_array_F0;
-	bindevent * event_array_F1;
-	bool built_array_of_binding_events; //--have we or have we not constructed such an array from the stack?
+        bindevent * event_array_F0;
+        bindevent * event_array_F1;
+
+        bool built_array_of_binding_events; //--have we or have we not constructed such an array from the stack?
+
 	int obs_count_filling;	// the current register of observation snapshot that have been taken.
 
 	double avg_F0_occupation;
@@ -322,12 +316,8 @@ bool already_warned;
 	double dtau_obs;
 //------DOWN TO HERE ----------
 
-
-	
 	int get_tarray_from_stack(void);
 
-//-------PUT THIS BACK IN:
-//!	int get_delayed_tcorr(const double * time_corr_t, double *time_corr_y, const int nbins);
 //------DELETE THIS:
 	int get_delayed_tcorr(const double * time_corr_t, double *time_corr_y, double *raw_overlap, const int nbins);
 //-----DOWN TO HERE.
@@ -360,9 +350,9 @@ int Nucnum, initialized_Nucnum;
 int TFnum;
 int partnum;	// total number of particles.
 
-double t;  // the current time.
-double tf; //---the termination (final) time
-double t_trans; //----the transient time before we start averaging on steady state.
+double t;  	//--- the current time.
+double tf; 	//--- the termination (final) time
+double t_trans; //--- the transient time before we start averaging on steady state.
 
 double ka_N,  ks_N;
 double ka_TF, ks_TF;

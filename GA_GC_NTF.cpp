@@ -1,20 +1,11 @@
 /**IMPLEMENTATION OF THE GILLESPIE ALGORITHM ON THE MOTION OF NUCLEOSOMES, TREATED AS 1-D PARTICLES ALONG DNA
-// ---last updated on  Thu Jan 9 12:42:40 CET 2014  by  Brendan.Osberg  at location  th-ws-e537
+// ---last updated on  Tue Feb 18 18:27:29 CET 2014  by  Brendan.Osberg  at location  th-ws-e537
+
+//  changes from  Tue Feb 18 18:27:29 CET 2014 : implemented simplified run for small particles. Tested, works.
 
 //  changes from  Thu Jan 9 12:42:40 CET 2014 : additional collection series for the 2-point correlation function: gathering curves during transient filling process now in addition to during equilibrium.
 
-//  changes from  Mon Dec 23 18:48:28 CET 2013 : added alpha option for intermediate Boltzmann application
-
-//  changes from  Fri Nov 29 10:52:02 CET 2013 : added remod_cand. function and int min_dist to GAdata; this way remodellers know when they've hit neighbours for the case of HNG.
-
-//  changes from  Thu Nov 21 16:44:04 CET 2013 : Ran valgrind to clear up some sloppy memory management, open file containers, etc. should be clean now.
-
-//  changes from  Fri Nov 8 15:32:37 CET 2013 : Now takes a p-ordered list of configurations and outputs the first 100 to check how good our statistics are
-
-//  changes from  Wed Nov 6 15:34:25 CET 2013 : Implemented configuration sampling at the t_filling time points. Also allowed for set_fixed distribution to initialize the array.
-
-//  changes from Thu Sep 26 19:39:46 CET 2013 : Accounted for the additional "boltzmann_on_removal" option in
-
+//  STARTED FROM SCRATCH BUILDING CODE FOR SMALL PARTICLES -SOME FEATURES WERE KEPT, SOME WERE AXED.
 *************************************************************************************/
 
 #include <fstream>   
@@ -50,8 +41,9 @@ const int Np10 = 10; 		// Resolution of time-samples taken. this is probably hig
 const int nsample = 30; 	//----the minimum number of binding events we want to sample over for valid statistics.
 const int charlength =400;	//----the length of the string kept in memory for file-path manipulation.
 
-int VNN_SNG_calc(double * potential,const int w, const double E0); //---generate potential for the "S"oft-core.
-int VNN_LNG_calc(double * potential,const int w, const double E0); //---generate potential for the "L"inear potential.
+int VNN_SNG_calc_smallp(double * potential, const int a, const double E0); //---generate potential for the "S"oft-core.
+int VNN_LNG_calc_smallp(double * potential, const int a, const double E0); 
+//---generate potential for the "L"inear potential for small particles.
 
 int space_tpoints_logarithmic(const double t0, const double tf, const int Np10, const int nbins, double * tx);
 
@@ -73,9 +65,9 @@ int i,j,x,n, t_index;
 unsigned long int seed;	// --- random number generator seed.
 int Llim;	// --- the length of the strand.
 
-bool HNG; 	// --- are we dealing with HNG particles? if false, then SNG
-bool SNG;	// --- soft core particles?
-bool LNG;	// --- linear-potential particles?
+bool HNG;       // --- are we dealing with HNG particles? if false, then SNG
+bool SNG;       // --- soft core particles?
+bool LNG;       // --- linear-potential particles?
 
 long int M;	// the number of transitions available at the moment;
 
@@ -87,14 +79,13 @@ gsl_rng * r;
 double r1, r2;	//  two random number places.
 
 double E0;
-int w_softwidth, m;	// w=footprint of the nuc, m=length of the TF
+int a_softlength;	// w=footprint of the nuc, m=length of the TF
 
 int h[3];
 double muN;		//---the original value (without coarse-graining)
-double irho_target;	//---this is what's read in, then by interpolation, we set muN accordingly.
+double muTF0;
 
 int F[2];
-double muTF[3];
 
 int numtrials;
 
@@ -149,8 +140,8 @@ else
 double max_tcorr;
 
 int paritycheck=0;
-int kHNG_CG=0;
-double CGF=0.0;
+int kHNG=0;
+
 string BZflag; //-----flag to determine which reactions are weighted by boltzmann factors.
 double BZalpha; //-- denotes the degree to which boltzmann scaling is applied on addition or on removal.
 
@@ -160,7 +151,6 @@ double BZalpha; //-- denotes the degree to which boltzmann scaling is applied on
 
 double t_trans; //---- the 'transient' time period after which equilibrium properties are analyzed.
 		//---- WHETHER TRANSIENT EFFECTS ARE REALLY GONE BY THIS TIME)
-
 
 //-----------------------------------------------------------------------------------------------
 
@@ -179,12 +169,8 @@ datin  >> kS_N  >> kA_N >> kS_TF  >> kA_TF;
 datin  >> Llim  ;  					//---Llim in LATTICE SITES, (after CG-ing), not bp.
 datin  >> t0   >> tf >>  t_trans >> dt_obs >> dtau_plot >> max_tcorr; 
 //--Llim - system size; dt_obs is now just the time we _start_ looking.
-datin  >> E0      >> w_softwidth      >>  kHNG_CG     >> m;	//----in the HNG case, we just take 'w' to mean 'k'
-datin  >> h[0]    >> h[1]   >> h[2];
-datin  >> irho_target;
-
-datin  >> F[0]    >> F[1];
-datin  >> muTF[0] >> muTF[1] >> muTF[2]; // last one is non-specific TF-binding
+datin  >> E0      >> a_softlength      >>  kHNG ;	//----in the HNG case, we just take 'w' to mean 'k'
+datin  >> muN     >> muTF0;
 
 datin  >> krm_b                 >> krm_val;
 datin  >> should_plot_snapshots >> Nplots2makeshort  >> Nplots2makelong;
@@ -197,13 +183,10 @@ datin  >> paritycheck;  //---this number is always 8888888 in the input file.
 datin  >> numtrials;
 datin.close();
 
+
+double CGF=1.0;
+
 //-----------------------------------------------------------------------------------------------
-
-
-bool boltzmann_on_uphill ;
-bool boltzmann_on_add    ;
-bool boltzmann_on_removal; 
-bool boltzmann_on_addrem_intermed; //-----this condition is now read in from file.
 
 
 if( paritycheck != 8888888 )
@@ -212,32 +195,27 @@ if( paritycheck != 8888888 )
 	exit(1);
 	}
 //----------------------------------------------------------
+
+bool boltzmann_on_uphill          = false;
+bool boltzmann_on_add             = false;
+bool boltzmann_on_removal         = false; 
+bool boltzmann_on_addrem_intermed = false; //-----this condition is now read in from file.
+
+
 if (BZflag =="boltzmann_on_uphill")
 	{
 	boltzmann_on_uphill  = true;
-	boltzmann_on_add     = false;
-	boltzmann_on_removal = false;
-	boltzmann_on_addrem_intermed = false;
 	}
 else if(BZflag == "boltzmann_on_add")
 	{
-	boltzmann_on_uphill  = false;
 	boltzmann_on_add     = true;
-	boltzmann_on_removal = false;
-	boltzmann_on_addrem_intermed = false;
 	}
 else if(BZflag == "boltzmann_on_removal")
 	{
-	boltzmann_on_uphill  = false;
-	boltzmann_on_add     = false;
 	boltzmann_on_removal = true;
-	boltzmann_on_addrem_intermed = false;
 	}
 else if(BZflag == "boltzmann_on_addrem_intermed")
 	{
-	boltzmann_on_uphill  = false;
-	boltzmann_on_add     = false;
-	boltzmann_on_removal = false;
 	boltzmann_on_addrem_intermed = true;
 	}
 else
@@ -251,48 +229,12 @@ if( (BZalpha<0.0) || (BZalpha>1.0))
 	cout << "\n ERROR: BZalpha is not between zero and one. exiting.\n";
 	exit(1);
 	}
-bool output_patterns=true;	//---should we print out the 2-part correlation function?
+
+bool output_patterns = true;	//---should we print out the 2-part correlation function?
 
 //----- TAKE INPUT irho_target and use it to determine chemical potential ---------
-
 //-----altered startup condition begins here.--------------------------------------------------------------------------
 
-if( (TASKID >= 1)  && (TASKID <= 100)  )
-	{
-	irho_target=155;
-	}
-/*-------------temporary fix to ensure we only sample the HNG155 run
-else if( (TASKID >= 11)  && (TASKID <= 20)  )
-	{
-	irho_target=165;
-	}
-else if( (TASKID >= 21)  && (TASKID <= 30)  )
-	{
-	irho_target=180;
-	}
-*/
-else
-	{
-	cout << "\n ERROR: TASKID outside of bounds. exiting.\n";
-	exit(1);
-	}
-///@@@@@@@DELETE THIS 
-if(NGtype!="HNG")
-	{
-	cout << "\n ERROR: this is supposed to be a HNG 155 run.\n";
-	exit(1);
-	}
-//-------- DOWN TO HERE ------
-
-//@@@ irho_target  = irho_target + 5*(TASKID-1); 
-
-/****************************************************
-if ( TASKID != 2 && TASKID != 4 && TASKID != 7 )
-	{
-	cout << "\n ERROR: TASKID outside of bounds. exiting.\n";
-	exit(1);
-	} 
-******************************************************/
 
 double tl,tu;	//---upper and lower bounds of the time necessary for convergence
 		//---using punish/reward schemes respectively.
@@ -334,57 +276,19 @@ else if(boltzmann_on_addrem_intermed)
 	tf  = gsl_sf_exp(ltf);
 	cout << "\n With intermediate Boltzmann condition alpha = " << BZalpha << ", tf is set to " << tf << endl;
 
-	}
+	} 
+	//----else if boltzmann_on_add, then just leave tf as is -don't change anything.
 
 //----- altered startup condition ends here.--------------------------------------------------------------------------
 
 
-CGF=double(kHNG_exact)/double(kHNG_CG);
-string CGF_getmu_feedin;
-if(kHNG_CG == kHNG_exact)
-	{
-	CGF_getmu_feedin ="1";	
-	}
-else
-	{
-	clear_charray(out, charlength );
-	sprintf(out, "%do%d",kHNG_exact,int(kHNG_CG));
-	CGF_getmu_feedin = out;
-	}
+// muN is just kept from file read-in.
 
-muN =  interpolate_mu_from_rhoi(irho_target,w_softwidth,E0,kHNG_exact,NGtype, CGF_getmu_feedin );
+int const RMRANGE  = 2*a_softlength;
 
 
-// muN =  interpolate_mu_from_rhoi(irho_target,w,E0,147,NGtype, CGF_getmu_feedin ); 
-//--this option is for when we're doing irreversible runs at k=167.
-
-
-//--------------------------------------------------------------------------------------------------------
-
-
-int const RMRANGE  = 4*w_softwidth;
-int const NNRANGE_full  = 2*w_softwidth; //---only goes up to the last non-zero entry.
-int const NTFRANGE_full = w_softwidth;
-
-/*-----------------------potential landscape features correspond to this diagram -----------------
-   muN2-----------> ____        
-                   |    |
-___muN0___         |    |______mu_N_______________x=Llim
-          |        |    
-          |        |
-   muN1-->|________|
-
-<---h0---><--h1---><-h2->
-
-muNCG are then just the scaled up versions accounting for coarse-graining.
-TF potential plot:
-
-                    muTF[1]   _
-     muTF[0]   _             | |
-              | |            | |
-______________| |____________| |_________ mu_TF[2]_____________x=Llim
-<----F0------->
-<--------------F1----------->
+/*------------------  potential landscape features correspond to this diagram----------------- 
+			THIS HERE IS JUST A TOY MODEL FOR SIMPLIFICATION PURPOSES.
 ---------------------------------------------------------------------------------------------*/
 
 ofstream * timestamps; 
@@ -401,28 +305,6 @@ sprintf(out, "%sGA.log",path.c_str());
 ofstream * log = new ofstream;
 (*log).open(out);
 
-
-//--------------------- CHECK FOR FINITE-SIZE ERRORS. --------------------------------------------
-if ( F[0] < 0 || F[0] > Llim || F[1] < 0 || F[1] > Llim  )
-	{
-	*log << "\n ERROR! specific binding sites are outside the system size. \n";
-	cout << "\n ERROR! specific binding sites are outside the system size. \n";
-	(*log).close();	exit(1);
-	}
-if(Llim/2 <= ceil(NNRANGE_full/CGF) )
-	{
-	*log << "\n ERROR! Llim= " << Llim << " is not long enough for NNrange= " << ceil(NNRANGE_full/CGF)  << " -risking wrap around ERROR!\n";
-	cout << "\n ERROR! Llim= " << Llim << " is not long enough for NNrange= " << ceil(NNRANGE_full/CGF) << " -risking wrap around ERROR!\n";
-	(*log).close(); exit(1);
-	}
-	
-if( ((NNRANGE_full/CGF)/2) <= m && TFs_allowed )
-	{
-	*log << "\n ERROR! TF width is too long for this code: we assume m << NNrange/2 \n";
-	cout << "\n ERROR! TF width is too long for this code: we assume m << NNrange/2 \n";
-	(*log).close(); exit(1); 
-	}
-	
 //-----------------  NOW   SEED   THE   RNG ------------------------------------
 clear_charray(out, charlength );
 sprintf(out, "%srngSEED.in",path.c_str());
@@ -467,7 +349,8 @@ cout << endl;
 
 //-------------------get arrays for t-filling--------------
 
-//-------------------- linear -------------------------
+//-------------------- linear -----------------------------
+
 int total_obs_eq;
 double * tpoints_eq    = NULL;
 double ti=dt_obs, tip1 = 0.0;
@@ -510,47 +393,37 @@ space_tpoints_logarithmic(t0, tf, Np10, total_obs_filling, tpoints_filling );
 
 //---------------------------------------------------------------------
 
-double * fillingfrac = new double[total_obs_filling]; 	//---this is the _TOTAL_ filling frac array. 
-							//---The one stored in the simdat struct is 
-							// just for a single run, and gets overwritten each time.
-
 int    ** void_histogram  = new int*[total_obs_filling];
-double *  void_means      = new double[total_obs_filling];
-double *  void_stddevs    = new double[total_obs_filling];
-double *  Ncheck          = new double[total_obs_filling];
-
 //-----------------   allocate and initialize overall population arrays ----------------
 
 double OavN_eq[Llim];
 double OavTF_eq[Llim];
 double output2partcorr_eq[Llim];
 
-
 for(x=0;x<Llim;x++)
 	{
 	OavN_eq[x]=0.0;
-	OavTF_eq[x]=0.0;
-	output2partcorr_eq[x]=0.0;
+        OavTF_eq[x]=0.0;
+        output2partcorr_eq[x]=0.0;
 	}
 
-double * output2partcorr_ti[total_obs_filling];	//----now the transient quantity.
+
+double * output2partcorr_ti[total_obs_filling]; //----now the transient quantity.
 double * OavN_ti[total_obs_filling];
 double * OavTF_ti[total_obs_filling];
 
 
 for(t_index=0; t_index<total_obs_filling; t_index++)
 	{
+	OavN_ti[t_index]            = new double[Llim];
+        OavTF_ti[t_index]           = new double[Llim];
 	output2partcorr_ti[t_index] = new double[Llim];
-
-	OavN_ti[t_index]  = new double[Llim];
-	OavTF_ti[t_index] = new double[Llim];
-
 
 	for(x=0;x<Llim;x++)
 		{
-		output2partcorr_ti[t_index][x] = 0.0;
-		OavN_ti[t_index][x]            = 0.0;
-		OavTF_ti[t_index][x]           = 0.0; 
+                output2partcorr_ti[t_index][x] = 0.0;
+                OavN_ti[t_index][x]            = 0.0;
+                OavTF_ti[t_index][x]           = 0.0;
 		}
 	}
 
@@ -563,6 +436,15 @@ config_set_t Z_all_t[total_obs_filling]; //--- an array of size for the number o
 
 //-------------------------------------------------------------------------------------
 
+
+double *  void_means      = new double[total_obs_filling];
+double *  void_stddevs    = new double[total_obs_filling];
+double *  Ncheck          = new double[total_obs_filling];
+double *  fillingfrac 	  = new double[total_obs_filling]; 	
+							//--- this is the _TOTAL_ filling frac array. 
+							//--- The one stored in the simdat struct is 
+							//--- just for a single run, and gets 
+							//--- overwritten each time.
 
 // 2-D array for the histogram of void sizes at the various time points. 
 // ---Now allocate memory:
@@ -600,55 +482,33 @@ for(i=0;i<total_obs_filling;i++)
 
 int nbins = floor((max_tcorr)/dtau_plot);
 
-double time_corr_t[nbins] ;
-double time_corr_y[nbins] ;
+//--------- GET TWO BODY POTENTIALS: -----------------------------------------
 
-for(i=0;i<nbins;i++)
+
+double VNN[a_softlength+1];
+double xcoarse[a_softlength];
+
+
+for(i=0;i<=a_softlength;i++)
 	{
-	time_corr_t[i] = 0.0;
-	time_corr_y[i] = 0.0;
-	}
-
-if(output_timecorr)
-	{
-	space_tpoints_linear(0.0, dtau_plot, max_tcorr, nbins, time_corr_t );
-	}
-
-//----------GET TWO BODY POTENTIALS:-------------------------------------------------------------------------
-
-double VNN_full[NNRANGE_full+1];
-
-int NNRANGE_CG = ceil(NNRANGE_full/CGF);
-double VNN_CG[NNRANGE_CG];
-double xcoarse[NNRANGE_CG];
-
-
-for(i=0;i<=NNRANGE_full;i++)
-	{
-	VNN_full[i]=0.0;
+	VNN[i]=0.0;
 	}
 if(SNG)
 	{
-	VNN_SNG_calc(VNN_full, w_softwidth, E0);
+	VNN_SNG_calc_smallp(VNN, a_softlength, E0);
 	}
 else if(LNG)
 	{
-	VNN_LNG_calc(VNN_full, w_softwidth, E0);
+	VNN_LNG_calc_smallp( VNN, a_softlength, E0 );
 	}
-
-coarse_grain(VNN_full, xcoarse, VNN_CG, NNRANGE_CG, NNRANGE_full, CGF);
-
 
  //--coarse-grain the 2-body interaction potential into a smaller system.
 //--------------------------------SETUP INITIALIZATION PARAMETERS---------------------
-int     sizes_n_ranges[7];
-sizes_n_ranges[0] = m;
-sizes_n_ranges[1] = w_softwidth;
-sizes_n_ranges[2] = kHNG_CG;
-sizes_n_ranges[3] = NNRANGE_full;
-sizes_n_ranges[4] = RMRANGE;
-sizes_n_ranges[5] = NTFRANGE_full;
-sizes_n_ranges[6] = Llim;
+int     sizes_n_ranges[4];
+sizes_n_ranges[0] = a_softlength;
+sizes_n_ranges[1] = kHNG;
+sizes_n_ranges[2] = RMRANGE;
+sizes_n_ranges[3] = Llim;
 
 //--------------------------------------
 double  k_rates[5];
@@ -681,22 +541,21 @@ observations[3] = total_obs_filling;
 observations[4] = total_obs_eq;
 observations[5] = nbins;
 //--------------------------------------
-double energetics[7];
-energetics[0] = muN;	//---input the actual chemical potential -the constructor handles all aspects of coarse-graining.
-energetics[1] = muTF[0];
-energetics[2] = muTF[1];
-energetics[3] = muTF[2];
-energetics[4] = E0;
-energetics[5] = CGF;
-energetics[6] = BZalpha;//----the boltzmann alpha value that defines the ratio between addition and removal.
+double energetics[4];
+energetics[0] = muN;	//--- input the actual chemical potential 
+			//--- the constructor handles all aspects of coarse-graining.
+energetics[1] = muTF0;
+energetics[2] = E0;
+energetics[3] = BZalpha;//----the boltzmann alpha value that defines the ratio between addition and removal.
 
 //--------------------------------------
 
 double num_binds_per_simulation_F0 =0.0;
 double num_binds_per_simulation_F1 =0.0;
 
-double avg_F0_occupation = 0.0;  
+double avg_F0_occupation = 0.0;
 double avg_F1_occupation = 0.0;
+
 // these will be taken each round from the simdat data variables of the same name
 
 //---------------------------------------------------------------------------------------
@@ -731,33 +590,27 @@ else
 	exit(1);
 	}
 //------------------------ SEND DOCUMENTATION TO THE LOG FILE ---------------------------
-cout  << "\n kHNG_exact = "       << kHNG_exact;
-cout  << "\n kHNG_CG    = "       << kHNG_CG;
+cout  << "\n kHNG       = "       << kHNG;
 cout  << "\n bind_irrev    = "    << bind_irrev;
 
 *log  << "\n NGtype     = "       << NGtype;
-*log  << "\n kHNG_exact = "       << kHNG_exact;
-*log  << "\n kHNG_CG    = "       << kHNG_CG;
+*log  << "\n kHNG       = "       << kHNG;
 
 *log  << "\n bind_irrev  = "       << bind_irrev; 
 *log  << "\n fixed_ref   = "       << fixed_ref;
 *log  << "\n TFs_allowed = "       << TFs_allowed;
 *log  << "\n debugging   = "       << debugging;
-*log  << "\n output_timecorr   = " << output_timecorr;
 *log  << "\n BZ    = "             << BZflag;
 *log  << "\n BZalpha = "           << BZalpha;
 
-*log  << "\n CGF   = "             << CGF;
-
 *log  << "\n RUN beginning with the following parameters : \n";
-*log  << "\n t_trans = "  << t_trans   << ", tf="    << tf     << endl;
-*log  << "Llim="  << Llim   << ", tf="    << tf     << endl;
-*log  << "E0 = "  << E0     << ", w= "    << w_softwidth      << ", m= "    << m      << endl ;
-*log  << "h0 = "  << h[0]   << ", h1= "   << h[1]   << ", h2= "   << h[2]   << endl ;
-*log  << "muN0 = " << muN << " irhotarget = " << irho_target << endl ;
-*log  << "F0 = "   << F[0]    << ", F1 = "       << F[1]    << endl ;
-*log  << "uTF0 = " << muTF[0] << ", uTF1 = "     << muTF[1] << endl ;
-*log  << "krm_b = " << krm_b  << ", krm_val = "  << krm_val << endl ;
+*log  << "\n t_trans = " << t_trans << ", tf="   << tf                 << endl;
+*log  << "Llim="         << Llim    << ", tf="    << tf     << endl;
+*log  << "E0 = "         << E0      << ", a_softlength= "   << a_softlength       << endl ;
+*log  << "h0 = "         << h[0]    << ", h1= "   << h[1]   << ", h2= "   << h[2] << endl ;
+*log  << "muN0 = "       << muN     <<  endl ;
+*log  << "uTF0 = "       << muTF0   << endl ;
+*log  << "krm_b = "      << krm_b   << ", krm_val = "  << krm_val  << endl ;
 *log  << " with kA_N = " << kA_N  << endl ;
 *log  << " with kA_N = " << kA_N  << endl ;
 *log  << " with kS_N = " << kS_N  << endl ;
@@ -812,7 +665,6 @@ for(i=0;i<numtrials;i++)
 
 	(*simdat).tpoints_filling   = tpoints_filling; 
 	(*simdat).tpoints_eq        = tpoints_eq; 
-	(*simdat).output_timecorr   = output_timecorr; 	
 
 	//------------------------------------
 
@@ -918,14 +770,7 @@ for(i=0;i<numtrials;i++)
 	}//--end the "while(t<tf)" -end of this simulation.	
 
 	/*---------------DONE THE INDIVIDUAL RUN--------------------------------*/
-
-	if ( output_timecorr )
-		{// --- this is only necessary if we are outputting the time-lagged 
-		 // --- correlation between TF's separated at F[1] , F[2]
-
-	   	(*simdat).cleanup_occ(); 		//--NEEDS TO BE DONE BEFORE UPDATING AVERAGES,  
-		}		  			//--PARTICLES still "HANGING ON" AT THE END OF tf
-    			 
+  			 
 	//-----------UPDATE OVERALL AVERAGES ----------------------------
 	if ( output_patterns) //---should we bother calculating the 2pc every time?
 		{
@@ -1159,17 +1004,17 @@ if(output_v2)
 	clear_charray(out, charlength );
 	if(!krm_b)
 		{
-		sprintf(out, "%sv2%s_w-%d_E0-%.3f_krm_0_CGF_%.3f.txt",path.c_str(),NGtype.c_str(),w_softwidth,E0,CGF);
+		sprintf(out, "%sv2%s_a-%d_E0-%.3f_krm_0_CGF_%.3f.txt",path.c_str(),NGtype.c_str(),a_softlength,E0,CGF);
 		}
 		else
 		{
-		sprintf(out, "%sv2%s_w-%d_E0-%.3f_krm_%lf_CGF_%.3f.txt",path.c_str(),NGtype.c_str(),w_softwidth,E0,krm_val,CGF);
+		sprintf(out, "%sv2%s_a-%d_E0-%.3f_krm_%lf_CGF_%.3f.txt",path.c_str(),NGtype.c_str(),a_softlength,E0,krm_val,CGF);
 		}
 	fVNNout = new ofstream(out);
 
-	for(x=0; x<NNRANGE_CG; x++)
+	for(x=0; x<a_softlength; x++)
 		{
-		*fVNNout << xcoarse[x] << " \t " << VNN_CG[x] << endl;
+		*fVNNout << xcoarse[x] << " \t " << VNN[x] << endl;
 		}
 	(*fVNNout).close();
 	delete fVNNout;
@@ -1299,7 +1144,7 @@ bool output_meanstddevvtime=false;
 if(output_meanstddevvtime)
 	{
 	clear_charray(out, charlength );
-	sprintf(out, "%svoidstats%sBZ%s_t_mean_stddev_Ncheck_irhotarg_%lf.txt",path.c_str(),NGtype.c_str(),BZ.c_str(), irho_target );
+	sprintf(out, "%svoidstats%sBZ%s_t_mean_stddev_Ncheck.txt",path.c_str(),NGtype.c_str(),BZ.c_str() );
 
 	favgout = new ofstream(out);
 
@@ -1357,24 +1202,7 @@ if(output_vdist_timepoints)
 	}
 
 
-//======================   OUTPUT TIME CORRELATION between two TF points.  ======================
-if(output_timecorr)
-	{
-	clear_charray(out, charlength );
-	sprintf(out, "%stime_correlation_muTF_%.2f_%.2f_%.2f_d_%d.txt",path.c_str(), muTF[0], muTF[1], muTF[2],F[1]-F[0]);
-	favgout = new ofstream(out);
-
-	for(j=0;j<nbins;j++)
-		{
-		*favgout << time_corr_t[j] << " \t " << (  ((1.0)/(double(numtrials))*time_corr_y[j])  )  << " \t " <<  avg_F0_occupation << " \t " << 	avg_F1_occupation << endl;
-
-		}
-	(*favgout).close();
-	delete favgout;
-
-	}
-
-//======================   OUTPUT void DISTRIBUTION STATISTICS across equilibrium  ======================
+//===============   OUTPUT void DISTRIBUTION STATISTICS across equilibrium  ================
 double Nvoidstotal_eq=0.0;
 
 if (get_voiddist_equilibrium)
