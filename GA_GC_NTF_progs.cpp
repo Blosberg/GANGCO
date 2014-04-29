@@ -1,5 +1,7 @@
 /*----- GA_GC_NTF_progs.cpp: functions/subroutines for the grand-canonical nucleosome gillespie algorithm.-----
-// ---last updated on  Tue Feb 18 18:27:29 CET 2014  by  Brendan.Osberg  at location  th-ws-e537
+// ---last updated on  Wed Apr 23 15:32:48 CEST 2014  by  ga79moz  at location  TUM , murter
+
+//  changes from  Wed Apr 23 15:32:48 CEST 2014 : removed VNN_S/LNG_calc_smallp definition from this file -now the only definition is in bren_lib.h
 
 //  changes from  Tue Feb 18 18:27:29 CET 2014 : implemented simplified run for small particles. Tested, works.
 
@@ -23,9 +25,9 @@
 //#include <bren_lib.h>
 
 #include <gsl/gsl_rng.h>
-int VNN_SNG_calc_smallp(double * potential, const int a, const double E0);
 int VNN_LNG_calc_smallp(double * potential, const int a, const double E0);
-
+int VNN_SNG_calc_smallp(double * potential, const int NNRANGE, const int a, const double E0);
+//---the SNG func has an extra input parameter for the LJ potential.
 
 int coarse_grain(const double * Vin_full, double * xcoarse, double * Vout_coarse, const int L, const int p, const double CGF); //--coarse-grain the 2-body interaction potential into a smaller system.
 
@@ -53,15 +55,17 @@ GAdata::GAdata(const double *energetics, const int* observations, const double* 
 {  // constructor
 int x,i,j;
 //-----------SIZES AND RANGES-----------
-   int a_softlength   = sizes_n_ranges[0];
-   kHNG               = sizes_n_ranges[1];
+   footprint      = sizes_n_ranges[0];
+ 	//---   kHNG        *is now just 'a'*      = sizes_n_ranges[1];
  	//the range in units of uncoarsened lattice sites.
-   RMrange            = sizes_n_ranges[2];
-   Llim               = sizes_n_ranges[3];
+   RMrange            = sizes_n_ranges[1];
+   Llim               = sizes_n_ranges[2];
+   NNRANGE	      = sizes_n_ranges[3];	
 
    M    = 8*Llim;	// the number of possible reactions -- most of which will have 0 amplitude
 
-   NNRANGE           = a_softlength;
+  m = 0;//--no TF's in this version.
+
 //------------RATES---------------------
    ks_N       =  k_rates[0];
    ka_N       =  k_rates[1];
@@ -75,7 +79,7 @@ int x,i,j;
    dtau_obs = times[2];
    t_trans  = times[3];
 //------------FlAGS---------------------
-   HNG = flags[0] ;
+   HNG = flags[0];
    SNG = flags[1];
    LNG = flags[2];
    boltzmann_on_uphill          = flags[3] ;
@@ -181,7 +185,7 @@ testing_avg_F0_occupation=0.0;
 testing_avg_F1_occupation=0.0;
 
 testing_olap_y = new double [nbins];
-for(i=0;i<nbins;i++)
+for(i=0;i<nbins; i++)
 	{
 	testing_olap_y[i]=0.0;
 	}
@@ -192,7 +196,7 @@ F1    =  2;	//just made up numbers for now.
 //--------------  THESE ARE ALL FILLING DYNAMICS PARAMETERS ---------------------
 
 filling_frac = new double[total_obs_filling];
-for(i=0;i<total_obs_filling;i++)
+for(i=0; i<total_obs_filling; i++)
 	{
 	filling_frac[i]=0.0;
 	}
@@ -207,7 +211,7 @@ obs_count_filling=0;	//--- the index of the time-snapshot that is
 //----------------------------------------
 
    recentRx = -12;
-   krm_b   = krm_B;
+   krm_b    = krm_B;
 
 //------------------- NOW GET THE POTENTIALS ----------------------------------
 
@@ -216,16 +220,14 @@ xcoarse  = new double[Llim]; for(i=0;i<Llim;i++){xcoarse[i]=0.0;}
 
 if(SNG)
 	{
-	min_dist=1;
-	min_dist=1;
-	VNN_SNG_calc_smallp(VNN_full, a_softlength, E0);
-
-	exit(1);
+	min_dist=1;	//---minimum distance that _can_ exist between 2 adjacent particles.
+			//---in this case it's 1 (in principle), but that close is energetically costly.
+	VNN_SNG_calc_smallp(VNN_full, NNRANGE, footprint, E0);
 	}
 else if(LNG)
 	{
 	min_dist=1;
-	VNN_LNG_calc_smallp(VNN_full, a_softlength, E0);
+	VNN_LNG_calc_smallp(VNN_full, footprint, E0);
 	}
 else
 	{
@@ -238,12 +240,12 @@ else
 		exit(1);
 		}
 
-	min_dist=kHNG;	//--  The minimum possibile distance between adjacent particles. 
+	min_dist= footprint;	//--  The minimum possibile distance between adjacent particles. 
 				//--  Prevent remodellers from violating this. 
 
 	for(i=0;i<=NNRANGE;i++)
 		{
-		if(i<kHNG) //---the coarse-graining comes later.
+		if(i<(footprint-1)) //---the coarse-graining comes later.
 			{
 			VNN_full[i]=(1/0.0);
 			}
@@ -262,7 +264,7 @@ else
 VNN       = new double[Llim]; //--most of these will just be zero, and never get used.
 for(i=0;i<Llim;i++)
 	{
-	if (i< NNRANGE+1 )
+	if (i< NNRANGE )
 		{
 		VNN[i] = VNN_full[i];
 		}
@@ -281,14 +283,7 @@ for(i=0;i<Llim;i++)
 delete [] VNN_full;
 
 
-//---------------------------------------------------------------------------------
-if ( ! (NNRANGE > NTFRANGE) )
-		{
-		cout    << "\n ERROR: hard-coded assumptions require NN interaction range >= NTF interaction range.\n";
-		*log_in << "\n ERROR: hard-coded assumptions require NN interaction range >= NTF interaction range.\n";
-		(*log_in).close();
-		exit(1);
-		}
+NTFRANGE=1;
 //---------------------------------------------------------------------------------
 
 path    = pathin;
@@ -883,7 +878,7 @@ return calc_rates( min, max,n);
 
 int GAdata::add_Nuc( int x)
 {
-int i, min, max;
+int i, min=0, max=0, dummy=0;
 bindevent Q; Q.t = t;  Q.species = 1;  Q.onoroff = 1;
 
 int pR = pos[x].part_right;
@@ -921,15 +916,22 @@ else
 	}
 
 //------------------------------------------------------------------------
-i=right(x);
 
+i=right(x);
 while(1)
 	{
-	pos[i].part_left=x;	// make this position's next left particle the former left particle of the current one.
-	if( ( pos[i].state == 1) || ( pos[i].state == 2) )
-		break;
+	pos[i].part_left=x;	
+	// i's next left particle to the left is now x.
 
-	i=right(i);	// increment position under consideration.
+	if( ( pos[i].state == 1) || ( pos[i].state == 2) )
+		{
+		break;
+		}
+	else
+		{
+		i=right(i);	// increment position under consideration.
+		}
+
 	}
 max=i;
 
@@ -1569,7 +1571,6 @@ int i,x;
 bool crossed_middle=false;
 
 
-
 //-------------------------INITIALIZE SCAN PARAMETERS-------------------------
 x=minpos;
 
@@ -1600,6 +1601,9 @@ if ( (partnum > 0) && ( (neighbours[0] != 1  &&  neighbours[0] != 2 ) || ( neigh
 double HNGrates[8];
 for(i=0;i<8;i++)
 	HNGrates[i] =0.0;
+
+//--- 'x' is initialized to minpos above.
+
 
 while(1)
 {
@@ -1706,7 +1710,7 @@ switch(pos[x].state )
 			process_error( x );
 			}
 
-		if(pos[left(x)].state ==0)
+		if(pos[left(x)].state ==0 && ks_N > 0.0 )
 			{
 			new_a_sNL = ks_N*gsl_sf_exp( -1.0 * max ( dEsL(1, x, neighbours ),0  )  ); 
 			//---unlike addition/removal, diffusion is ALWAYS weighted by the boltzmann 
@@ -1717,7 +1721,7 @@ switch(pos[x].state )
 			new_a_sNL = 0.0;
 			}
 
-		if(pos[right(x)].state ==0)
+		if(pos[right(x)].state ==0 && ks_N > 0.0 )
 			{
 			new_a_sNR = ks_N * gsl_sf_exp( -1.0 * max ( dEsR(1, x, neighbours ),0  )  );
 			//---unlike addition/removal, diffusion is ALWAYS weighted by the boltzmann 
@@ -1791,12 +1795,12 @@ switch(pos[x].state )
 			process_error( x );
 			}
 
-		if(pos[left(x)].state ==0)
+		if(pos[left(x)].state ==0 && ks_TF > 0.0 )
 			new_a_sTFL = ks_TF*gsl_sf_exp( -1.0 * max ( dEsL(2, x, neighbours ), 0 ) );
 		else
 			new_a_sTFL = 0.0;
 
-		if( distance(x ,neighbours[3] )  <= m )
+		if( distance(x ,neighbours[3] )  <= m  || ks_TF <= 0.0 )
 			new_a_sTFR = 0.0;
 		else
 			new_a_sTFR = ks_TF*gsl_sf_exp( -1.0 * max ( dEsR(2, x, neighbours ), 0) );
@@ -1903,7 +1907,7 @@ switch( type)
 	case 0:
 		//---------------------|<------------------> <------>
 		//---------------------|==============|     x       |==============|
-	   if (  (distance(pos[x].part_left,x) < kHNG &&  neighbours[0] ==1 ) || ( (distance(x,pos[x].part_right) < kHNG) )   )
+	   if (  (distance(pos[x].part_left,x) < footprint &&  neighbours[0] ==1 ) || ( (distance(x,pos[x].part_right) < footprint) )   )
 		{
 		new_a_addN  = 0.0;
 		}
@@ -1912,7 +1916,7 @@ switch( type)
 		new_a_addN  = ka_N*k_E( -muN(x) ); //---always weight mu on addition.
 		}
 
-	   if( (distance(x,pos[x].part_right) < m) || ( distance(pos[x].part_left,x) < kHNG &&  neighbours[0] ==1 ) || (!TFs_allowed) )
+	   if( (distance(x,pos[x].part_right) < m) || ( distance(pos[x].part_left,x) < footprint &&  neighbours[0] ==1 ) || (!TFs_allowed) )
 		{
 		new_a_addTF =0.0;
 		}
@@ -1935,14 +1939,14 @@ switch( type)
 
 	new_a_removeN  = ka_N*1.0;
 
-	if ( distance(pos[x].part_left,x) < kHNG || distance(x,pos[x].part_right) < kHNG )
+	if ( distance(pos[x].part_left,x) < footprint || distance(x,pos[x].part_right) < footprint )
 		{
 		flag=131429;
 		process_error( x );
 		}
 
 
-	if( (distance(pos[x].part_left,x) <= kHNG &&  neighbours[0] ==1 ) ||  pos[left(x)].state !=0 )
+	if( (distance(pos[x].part_left,x) <= footprint &&  neighbours[0] ==1 ) ||  pos[left(x)].state !=0 )
 		{
 		new_a_sNL = 0.0;
 		}
@@ -1951,7 +1955,7 @@ switch( type)
 		new_a_sNL = ks_N*gsl_sf_exp( -1.0 * max ( muN(left(x))- muN(x) , 0  )  );
 		}
 
-	if(  distance(x,pos[x].part_right) <= kHNG)    
+	if(  distance(x,pos[x].part_right) <= footprint)    
 		{
 		new_a_sNR = 0.0;
 		}
@@ -1970,7 +1974,7 @@ switch( type)
 	
 	case 2://---------------------Transcription factor------------------------------
 
-	if( (distance(pos[x].part_left,x) <= kHNG &&  neighbours[0] ==1 ) ||  pos[left(x)].state !=0 )
+	if( (distance(pos[x].part_left,x) <= footprint &&  neighbours[0] ==1 ) ||  pos[left(x)].state !=0 )
 		{
 		new_a_sTFL = 0.0;
 		}
@@ -1979,7 +1983,7 @@ switch( type)
 		new_a_sTFL = ks_TF*gsl_sf_exp( -1.0 * max ( muTF(left(x))- muTF(x) , 0  )  );
 		}
 
-	if(  distance(x,pos[x].part_right) <= kHNG)    
+	if(  distance(x,pos[x].part_right) <= footprint)    
 		{
 		new_a_sNR = 0.0;
 		}
@@ -2778,7 +2782,7 @@ else
    p2p = distance(ref_point,pos[ref_point].part_right );
 
    if(HNG)
-     {void_size=p2p-kHNG;}
+     {void_size=p2p-footprint;}
    else if(SNG||LNG)
      {void_size=p2p-1;}
 
@@ -2798,7 +2802,7 @@ else
  	p2p       = distance(ref_point,pos[ref_point].part_right );
 
 	if(HNG)
-	    {void_size=p2p-kHNG;}
+	    {void_size=p2p-footprint;}
 	else if(SNG||LNG)
 	    {void_size=p2p-1;}
 		
@@ -2854,7 +2858,7 @@ else
    p2p = distance(ref_point,pos[ref_point].part_right );
 
    if(HNG)
-     {void_size=p2p-kHNG;}
+     {void_size=p2p-footprint;}
    else if(SNG||LNG)
      {void_size=p2p-1;}
 
@@ -2874,7 +2878,7 @@ else
  	p2p       = distance(ref_point,pos[ref_point].part_right );
 
 	if(HNG)
-	    {void_size=p2p-kHNG;}
+	    {void_size=p2p-footprint;}
 	else if(SNG||LNG)
 	    {void_size=p2p-1;}
 		
@@ -3322,28 +3326,6 @@ else
 
 return result;
 }
-//*****************************************************************
-int VNN_SNG_calc_smallp(double * potential, const int a, const double E0)
-{// potential has allocated size [NNRANGE_full+1], ( NNRANGE_full =2*w), hence 2*w+1
-
-cout << "\n ERROR: still have to code for this option.";
-exit(1);
-
-return 1;
-}
-//*****************************************************************
-int VNN_LNG_calc_smallp(double * potential, const int a, const double E0)
-{// potential has allocated size [NNRANGE_full+1], ( NNRANGE_full =2*w), hence 2*w+1
-
-int n=0;
-for(n=0 ; n<a ; n++) //the max value is (a-1), and there the potential becomes zero.
-	{
-	potential[n] = (a-(n+1))*E0;
-	}
-
-return 1;
-}
-
 //****************************************************************************
 
 int GAdata::check_rates( void )
@@ -3482,12 +3464,12 @@ for(x=0;x<Llim;x++)
 			}
 
 		
-		if(pos[left(x)].state ==0)
+		if(pos[left(x)].state ==0 && ks_N > 0.0)
 			check_a_sNL = ks_N*k_E( dEsL(1, x, neighbours ) );
 		else
 			check_a_sNL = 0.0;
 
-		if(pos[right(x)].state ==0)
+		if(pos[right(x)].state ==0  && ks_N > 0.0)
 			check_a_sNR = ks_N*k_E( dEsR(1, x, neighbours ) );
 		else
 			check_a_sNR = 0.0;
@@ -3548,12 +3530,12 @@ for(x=0;x<Llim;x++)
 			}
 
 
-		if(pos[left(x)].state ==0) 
+		if(pos[left(x)].state ==0  || ks_TF > 0.0) 
 			check_a_sTFL = ks_TF*gsl_sf_exp( -1.0 * max ( dEsL(2, x, neighbours ), 0 ) );
 		else
 			check_a_sTFL = 0.0;
 
-		if( distance(x ,neighbours[3] )  <= m )
+		if( distance(x ,neighbours[3] )  <= m || ks_TF > 0.0 )
 			check_a_sTFR = 0.0;
 		else
 			check_a_sTFR = ks_TF*gsl_sf_exp( -1.0 * max ( dEsR(2, x, neighbours ), 0) );

@@ -8,26 +8,27 @@
 //  STARTED FROM SCRATCH BUILDING CODE FOR SMALL PARTICLES -SOME FEATURES WERE KEPT, SOME WERE AXED.
 *************************************************************************************/
 
+
 #include <fstream>   
+#include <math.h>
 #include <iostream>  
 #include <iomanip>  
-#include <stdio.h>
+#include <sstream>
 
 #include <stdlib.h>
 
 #include <gsl/gsl_matrix.h>
 #include <gsl/gsl_sf_exp.h>
 #include <gsl/gsl_sf_log.h>
-#include <queue>
+#include <gsl/gsl_rng.h>
 #include <cmath>
-#include <math.h>
 #include <queue>  //in order to stack the events of binding/unbinding
+#include <dirent.h>
+
 #include "GA_GC_NTF.h"
 #include <GA_NTF_standards.h>
 #include <GA_absolute_standards.h>
 #include <bren_lib.h>
-
-#include <gsl/gsl_rng.h>
 
 double const pi   = 3.14159265358979323846264;
 //double const hbar = 1.0546E-34; // in units of Js.
@@ -41,7 +42,8 @@ const int Np10 = 10; 		// Resolution of time-samples taken. this is probably hig
 const int nsample = 30; 	//----the minimum number of binding events we want to sample over for valid statistics.
 const int charlength =400;	//----the length of the string kept in memory for file-path manipulation.
 
-int VNN_SNG_calc_smallp(double * potential, const int a, const double E0); //---generate potential for the "S"oft-core.
+int VNN_SNG_calc_smallp(double * potential, const int NNRANGE, const int a, const double E0);
+//---the SNG func has an extra input parameter for the LJ potential.
 int VNN_LNG_calc_smallp(double * potential, const int a, const double E0); 
 //---generate potential for the "L"inear potential for small particles.
 
@@ -78,11 +80,12 @@ const gsl_rng_type * T;
 gsl_rng * r;
 double r1, r2;	//  two random number places.
 
-double E0;
-int a_softlength;	// w=footprint of the nuc, m=length of the TF
+double E0=0.0;
+int  footprint;		// footprint of the nuc, regardless of hard or soft. m=length of TF
 
-int h[3];
-double muN;		//---the original value (without coarse-graining)
+int h[3]; h[0]=h[1]=h[2]=0;
+double muN_input;	//---the original value (without coarse-graining)
+double muN;		//--- this one MIGHT get changed.
 double muTF0;
 
 int F[2];
@@ -98,7 +101,7 @@ double krm_val;	//---if we do, how strongly do they act?
 bool should_plot_snapshots;
 bool should_plot_kymo;
 
-string path;
+string path, pathout;
 int Nplots2makeshort, Nplots2makelong;
 int Nplots2make_kymo;
 
@@ -109,13 +112,39 @@ double dtau_plot;
 int TASKID;
 string NGtype;
 
-if(argc != 4)
-	{cout << "\n ERROR: not the correct number of input parameters.\n"; exit(1);}
-else
+//-------------  'command line parameters' ----------------------------------
+
+if(argc <= 1)
 	{
-	path =argv[1];
-	TASKID = atoi(argv[2]);
-	NGtype = argv[3];
+	goto command_line_garbage;
+	}
+NGtype = argv[1];
+
+if( (NGtype!="SNG" && NGtype!="LNG") && (NGtype!="HNG") )
+	{
+	goto command_line_garbage;
+	}
+
+if (  ( (NGtype=="SNG"  || NGtype=="LNG" ) && argc != 5) || (NGtype=="HNG" && argc !=4)  )
+	{
+	
+	command_line_garbage:
+	cout << "\n error: unexpected number of input arguments; argc = " << argc << " \n and they were : ";
+	for (j=1;j<argc;j++)
+		{
+		cout << argv[j] << ",  ";
+		}
+	cout << "\n exiting\n\n";
+	exit(1);
+	}
+
+TASKID      = atoi(argv[2]);
+muN_input   = atof(argv[3]);
+ 
+
+if( (NGtype=="SNG"  || NGtype=="LNG" ) )
+	{
+	E0            = atof(argv[4]); //---atof is for floats and doubles.
 	}
 
 //---------------------------------------------------------------------------
@@ -140,9 +169,8 @@ else
 double max_tcorr;
 
 int paritycheck=0;
-int kHNG=0;
 
-string BZflag; //-----flag to determine which reactions are weighted by boltzmann factors.
+string BZcond; //-----flag to determine which reactions are weighted by boltzmann factors.
 double BZalpha; //-- denotes the degree to which boltzmann scaling is applied on addition or on removal.
 
 		//-- r_on = exp(-V * BZalpha) , r_off = exp( V * (1-BZalpha) )
@@ -155,10 +183,10 @@ double t_trans; //---- the 'transient' time period after which equilibrium prope
 //-----------------------------------------------------------------------------------------------
 
 //-READ IN PARAMETERS FOR THE SIMULATION FROM THE IN FILE.-----------------
-char out[charlength];
-clear_charray(out, charlength );
-sprintf(out, "%sGA_GC_NTF.in",path.c_str());
-ifstream datin(out);
+char cpath[charlength];
+clear_charray(cpath, charlength );
+sprintf(cpath, "./GA_GC_NTF.in"); //----input file should always be in the working directory.
+ifstream datin(cpath);
 if(datin.fail())
 	{
 	cout << "\n ERROR, can't find input file. exiting \n";
@@ -166,16 +194,16 @@ if(datin.fail())
 	}
 
 datin  >> kS_N  >> kA_N >> kS_TF  >> kA_TF;
-datin  >> Llim  ;  					//---Llim in LATTICE SITES, (after CG-ing), not bp.
+datin  >> Llim  ;  			//---Llim in LATTICE SITES, (after CG-ing), not bp.
 datin  >> t0   >> tf >>  t_trans >> dt_obs >> dtau_plot >> max_tcorr; 
 //--Llim - system size; dt_obs is now just the time we _start_ looking.
-datin  >> E0      >> a_softlength      >>  kHNG ;	//----in the HNG case, we just take 'w' to mean 'k'
-datin  >> muN     >> muTF0;
+datin  >> footprint ;	//----in the HNG case, we just take 'w' to mean 'k'
+datin  >> muTF0;
 
 datin  >> krm_b                 >> krm_val;
 datin  >> should_plot_snapshots >> Nplots2makeshort  >> Nplots2makelong;
 datin  >> should_plot_kymo      >> Nplots2make_kymo;
-datin  >> BZflag                >> BZalpha;
+datin  >> BZcond                >> BZalpha;
 
 datin  >> paritycheck;  //---this number is always 8888888 in the input file. 
 // If it gets read as something different then somethings wrong with the I/O formatting.
@@ -183,13 +211,9 @@ datin  >> paritycheck;  //---this number is always 8888888 in the input file.
 datin  >> numtrials;
 datin.close();
 
-
-double CGF=1.0;
-
 //-----------------------------------------------------------------------------------------------
 
-
-if( paritycheck != 8888888 )
+if( paritycheck != 88885888 )
 	{
 	cout << "\n ERROR in parity check -input parameters are disordered somehow. Check your input file.\n";
 	exit(1);
@@ -202,19 +226,19 @@ bool boltzmann_on_removal         = false;
 bool boltzmann_on_addrem_intermed = false; //-----this condition is now read in from file.
 
 
-if (BZflag =="boltzmann_on_uphill")
+if (BZcond =="boltzmann_on_uphill")
 	{
 	boltzmann_on_uphill  = true;
 	}
-else if(BZflag == "boltzmann_on_add")
+else if(BZcond == "boltzmann_on_add")
 	{
 	boltzmann_on_add     = true;
 	}
-else if(BZflag == "boltzmann_on_removal")
+else if(BZcond == "boltzmann_on_removal")
 	{
 	boltzmann_on_removal = true;
 	}
-else if(BZflag == "boltzmann_on_addrem_intermed")
+else if(BZcond == "boltzmann_on_addrem_intermed")
 	{
 	boltzmann_on_addrem_intermed = true;
 	}
@@ -230,7 +254,7 @@ if( (BZalpha<0.0) || (BZalpha>1.0))
 	exit(1);
 	}
 
-bool output_patterns = true;	//---should we print out the 2-part correlation function?
+bool output_patterns = false;	//---should we print out the 2-part correlation function?
 
 //----- TAKE INPUT irho_target and use it to determine chemical potential ---------
 //-----altered startup condition begins here.--------------------------------------------------------------------------
@@ -279,36 +303,55 @@ else if(boltzmann_on_addrem_intermed)
 	} 
 	//----else if boltzmann_on_add, then just leave tf as is -don't change anything.
 
-//----- altered startup condition ends here.--------------------------------------------------------------------------
+
+// muN is just read from command line.
+muN=muN_input;
+
+int const RMRANGE  = 2*footprint;
 
 
-// muN is just kept from file read-in.
+//-------------------------- setup the output directory and file --------------------------
 
-int const RMRANGE  = 2*a_softlength;
+clear_charray(cpath, charlength );
+sprintf(cpath, "./phasespace_output_muN-%.2f_E0-%.2f/", muN, E0);
+pathout = cpath;
+
+if ( DirectoryExists( pathout.c_str()  ) )
+	{
+	cout << "\n output path already exists. \n";
+	}
+else
+	{
+	cout << "\n output path does not exist -creating it. \n";
+	clear_charray(cpath, charlength );
+
+	sprintf(cpath, "mkdir \"./%s\"",pathout.c_str());
+	system(cpath);
+	}
+
+clear_charray(cpath, charlength );
+
+sprintf(cpath, "%sGA_cjob.log",pathout.c_str());
+
+ofstream *log = new ofstream(cpath, std::ofstream::out);
+
+//------------------------------------------------------------------------------
 
 
-/*------------------  potential landscape features correspond to this diagram----------------- 
-			THIS HERE IS JUST A TOY MODEL FOR SIMPLIFICATION PURPOSES.
----------------------------------------------------------------------------------------------*/
 
 ofstream * timestamps; 
 if(should_plot_snapshots )
 	{
-	clear_charray(out, charlength );
-	sprintf(out, "%ssnapshot_timestamps.txt",path.c_str());
+	clear_charray(cpath, charlength );
+	sprintf(cpath, "%ssnapshot_timestamps.txt",pathout.c_str());
 	timestamps = new ofstream;
-	(*timestamps).open(out);
+	(*timestamps).open(cpath);
 	}
 
-clear_charray(out, charlength );
-sprintf(out, "%sGA.log",path.c_str());
-ofstream * log = new ofstream;
-(*log).open(out);
-
 //-----------------  NOW   SEED   THE   RNG ------------------------------------
-clear_charray(out, charlength );
-sprintf(out, "%srngSEED.in",path.c_str());
-ifstream fseedin(out);
+clear_charray(cpath, charlength );
+sprintf(cpath, "./rngSEED.in");
+ifstream fseedin(cpath);
 
 if(fseedin.fail())
 	{
@@ -400,13 +443,10 @@ double OavN_eq[Llim];
 double OavTF_eq[Llim];
 double output2partcorr_eq[Llim];
 
-for(x=0;x<Llim;x++)
-	{
-	OavN_eq[x]=0.0;
-        OavTF_eq[x]=0.0;
-        output2partcorr_eq[x]=0.0;
-	}
 
+init_array( OavN_eq           , Llim, 0.0 );
+init_array( OavTF_eq          , Llim, 0.0 );
+init_array( output2partcorr_eq, Llim, 0.0 );
 
 double * output2partcorr_ti[total_obs_filling]; //----now the transient quantity.
 double * OavN_ti[total_obs_filling];
@@ -416,15 +456,14 @@ double * OavTF_ti[total_obs_filling];
 for(t_index=0; t_index<total_obs_filling; t_index++)
 	{
 	OavN_ti[t_index]            = new double[Llim];
-        OavTF_ti[t_index]           = new double[Llim];
-	output2partcorr_ti[t_index] = new double[Llim];
+	init_array( OavN_ti[t_index], Llim, 0.0);
 
-	for(x=0;x<Llim;x++)
-		{
-                output2partcorr_ti[t_index][x] = 0.0;
-                OavN_ti[t_index][x]            = 0.0;
-                OavTF_ti[t_index][x]           = 0.0;
-		}
+        OavTF_ti[t_index]           = new double[Llim];
+	init_array( OavTF_ti[t_index], Llim, 0.0);
+
+	output2partcorr_ti[t_index] = new double[Llim];
+	init_array( output2partcorr_ti[t_index], Llim, 0.0);
+
 	}
 
 //-------------------------------------------------------------------------------------
@@ -485,31 +524,57 @@ int nbins = floor((max_tcorr)/dtau_plot);
 //--------- GET TWO BODY POTENTIALS: -----------------------------------------
 
 
-double VNN[a_softlength+1];
-double xcoarse[a_softlength];
-
-
-for(i=0;i<=a_softlength;i++)
-	{
-	VNN[i]=0.0;
-	}
+int NNRANGE;
 if(SNG)
 	{
-	VNN_SNG_calc_smallp(VNN, a_softlength, E0);
+	NNRANGE = Llim-1;	// Lennard-Jones potential across the entire array.
 	}
 else if(LNG)
 	{
-	VNN_LNG_calc_smallp( VNN, a_softlength, E0 );
+	NNRANGE = footprint;
+	}
+else if(HNG)
+	{
+	NNRANGE = footprint;
 	}
 
+double VNN[NNRANGE+1];
+double xcoarse[NNRANGE+1];
+
+for(i=0;i<=NNRANGE;i++)
+	{
+	VNN[i]     = 0.0;
+	xcoarse[i] = i;
+	}
+if(SNG)
+	{
+	VNN_SNG_calc_smallp(VNN, NNRANGE , footprint, E0);
+	}
+else if(LNG)
+	{
+	VNN_LNG_calc_smallp( VNN, footprint, E0 );
+	}
+else if(HNG)
+	{
+	for(i=0;i<=NNRANGE;i++)
+		{
+		VNN[i]     = 1.0/0.0;
+		xcoarse[i] = i;
+		}
+	}
+else
+	{
+	cout << "\n ERROR: no NGtype selected.\n";
+	exit(1);
+	}
  //--coarse-grain the 2-body interaction potential into a smaller system.
 //--------------------------------SETUP INITIALIZATION PARAMETERS---------------------
 int     sizes_n_ranges[4];
-sizes_n_ranges[0] = a_softlength;
-sizes_n_ranges[1] = kHNG;
-sizes_n_ranges[2] = RMRANGE;
-sizes_n_ranges[3] = Llim;
-
+sizes_n_ranges[0] = footprint;
+	//-------sizes_n_ranges[1] = kHNG; // kHNG *is* 'footprint'
+sizes_n_ranges[1] = RMRANGE;
+sizes_n_ranges[2] = Llim;
+sizes_n_ranges[3] = NNRANGE;
 //--------------------------------------
 double  k_rates[5];
 k_rates[0]=kS_N;
@@ -590,23 +655,22 @@ else
 	exit(1);
 	}
 //------------------------ SEND DOCUMENTATION TO THE LOG FILE ---------------------------
-cout  << "\n kHNG       = "       << kHNG;
-cout  << "\n bind_irrev    = "    << bind_irrev;
+
+cout  << "\n bind_irrev    = "    << bind_irrev << endl ;
 
 *log  << "\n NGtype     = "       << NGtype;
-*log  << "\n kHNG       = "       << kHNG;
 
 *log  << "\n bind_irrev  = "       << bind_irrev; 
 *log  << "\n fixed_ref   = "       << fixed_ref;
 *log  << "\n TFs_allowed = "       << TFs_allowed;
 *log  << "\n debugging   = "       << debugging;
-*log  << "\n BZ    = "             << BZflag;
+*log  << "\n BZ    = "             << BZcond;
 *log  << "\n BZalpha = "           << BZalpha;
 
 *log  << "\n RUN beginning with the following parameters : \n";
-*log  << "\n t_trans = " << t_trans << ", tf="   << tf                 << endl;
-*log  << "Llim="         << Llim    << ", tf="    << tf     << endl;
-*log  << "E0 = "         << E0      << ", a_softlength= "   << a_softlength       << endl ;
+*log  << "\n t_trans = " << t_trans << ", tf="            << tf      << endl;
+*log  << "Llim="         << Llim    << endl;
+*log  << "E0 = "         << E0      << ", footprint = "   << footprint      << endl ;
 *log  << "h0 = "         << h[0]    << ", h1= "   << h[1]   << ", h2= "   << h[2] << endl ;
 *log  << "muN0 = "       << muN     <<  endl ;
 *log  << "uTF0 = "       << muTF0   << endl ;
@@ -630,19 +694,13 @@ if(should_plot_kymo)
 	fkymo_outN  = new ofstream;
 	fkymo_outTF = new ofstream;
 
-	for(i=0;i<charlength;i++)
-		{
-		out[i]='\0';
-		}
-		sprintf(out, "%skymograph_t_Npos.txt",path.c_str());
-	(*fkymo_outN).open(out);
+	clear_charray(cpath, charlength );
+	sprintf(cpath, "%skymograph_t_Npos.txt",pathout.c_str());
+	(*fkymo_outN).open(cpath);
 
-	for(i=0;i<charlength;i++)
-		{
-		out[i]='\0';
-		}
-		sprintf(out, "%skymograph_t_TFpos.txt",path.c_str());
-	(*fkymo_outTF).open(out);
+	clear_charray(cpath, charlength );
+	sprintf(cpath, "%skymograph_t_TFpos.txt",pathout.c_str());
+	(*fkymo_outTF).open(cpath);
 
 	}
 
@@ -655,13 +713,13 @@ for(i=0;i<numtrials;i++)
 
 	GAdata * simdat = new GAdata(energetics, observations, k_rates, times, sizes_n_ranges, h,F, krm_b,  path, log, timestamps, flags);
 
-	//-------------------ask if we should start with some fixed initial configuration.-----------------
+	//------- ask if we should start with some fixed initial configuration. ---------
 	if( set_fixed_initial )
 		{
 		*log << "\n set_fixed_initial is TRUE : setting initial ones.\n";
 		(*simdat).set_fixed_initial_particles( path, r );
 		}
-	//-------------------------------------------------------------------------------------------------
+	//------------------------------------------------------------------------------
 
 	(*simdat).tpoints_filling   = tpoints_filling; 
 	(*simdat).tpoints_eq        = tpoints_eq; 
@@ -838,7 +896,9 @@ for(i=0;i<numtrials;i++)
 
 //-------------------------DONE ALL THE TRIALS-----------------------
 
-calc_void_statistics(  void_means, void_stddevs, Ncheck, void_histogram, total_obs_filling, Llim , CGF, numtrials);
+//! -----this was for nucleosomes---- : calc_void_statistics(  void_means, void_stddevs, Ncheck, void_histogram, total_obs_filling, Llim , CGF, numtrials);
+//! removed coarse-graining functionality 
+calc_void_statistics(  void_means, void_stddevs, Ncheck, void_histogram, total_obs_filling, Llim , 1.0, numtrials);
 
 	num_binds_per_simulation_F0 = 	num_binds_per_simulation_F0 /(double (numtrials) );
 	num_binds_per_simulation_F1 = 	num_binds_per_simulation_F1 /(double (numtrials) );
@@ -926,10 +986,10 @@ if(calculate_entropy)
 		}
 
 	//---------------NOW OUTPUT THE LIST OF CONFIGURATION COUNTS--------------
-	clear_charray(out, charlength );
-	sprintf(out, "%sthermostuff_configuration_sampling_tcols.txt",path.c_str());
+	clear_charray(cpath, charlength );
+	sprintf(cpath, "%sthermostuff_configuration_sampling_tcols.txt",pathout.c_str());
 	
-	fentropyout = new ofstream(out);
+	fentropyout = new ofstream(cpath);
 
 	for(j=0; j<get_first_N; j++)
 		{
@@ -946,10 +1006,10 @@ if(calculate_entropy)
 
 	//---------------NOW OUTPUT THE RESULTS OF THAT CALCULATION---------------	
 
-	clear_charray(out, charlength );
+	clear_charray(cpath, charlength );
 
-	sprintf(out, "%sthermoquantities_t_S_H_Htot_Nave.txt",path.c_str());
-	fentropyout = new ofstream(out);
+	sprintf(cpath, "%sthermoquantities_t_S_H_Htot_Nave.txt",pathout.c_str());
+	fentropyout = new ofstream(cpath);
 
 	for(i=0;i<total_obs_filling;i++)
 		{ 
@@ -964,9 +1024,9 @@ if(calculate_entropy)
 
 	if( output_config_strings)
 		{
-		clear_charray(out, charlength );
-		sprintf(out, "%sconfigstrings_ti_vs_t.txt",path.c_str());
-		configs_ti_t.open(out);
+		clear_charray(cpath, charlength );
+		sprintf(cpath, "%sconfigstrings_ti_vs_t.txt",pathout.c_str());
+		configs_ti_t.open(cpath);
 
 		fentropyout = new ofstream;
 
@@ -974,10 +1034,10 @@ if(calculate_entropy)
 			{ 
 			configs_ti_t << i << "\t" <<  tpoints_filling[i] << endl;
  
-			clear_charray(out, charlength );
-			sprintf(out, "%sconfigstrings_ti_%d.txt",path.c_str(),i);
+			clear_charray(cpath, charlength );
+			sprintf(cpath, "%sconfigstrings_ti_%d.txt",pathout.c_str(),i);
 
-			(*fentropyout).open(out);
+			(*fentropyout).open(cpath);
 			Size_current_tvec = Z_all_t[i].Z_t.size();
 
 			for(j=0; j < Size_current_tvec ; j++)
@@ -1001,18 +1061,18 @@ ofstream *fVNNout;
 
 if(output_v2)
 	{
-	clear_charray(out, charlength );
+	clear_charray(cpath, charlength );
 	if(!krm_b)
 		{
-		sprintf(out, "%sv2%s_a-%d_E0-%.3f_krm_0_CGF_%.3f.txt",path.c_str(),NGtype.c_str(),a_softlength,E0,CGF);
+		sprintf(cpath, "%sv2%s_fp-%d_E0-%.3f_krm_0.txt",pathout.c_str(),NGtype.c_str(), footprint, E0);
 		}
 		else
 		{
-		sprintf(out, "%sv2%s_a-%d_E0-%.3f_krm_%lf_CGF_%.3f.txt",path.c_str(),NGtype.c_str(),a_softlength,E0,krm_val,CGF);
+		sprintf(cpath, "%sv2%s_fp-%d_E0-%.3f_krm_%lf.txt",pathout.c_str(),NGtype.c_str(),footprint,E0,krm_val);
 		}
-	fVNNout = new ofstream(out);
+	fVNNout = new ofstream(cpath);
 
-	for(x=0; x<a_softlength; x++)
+	for(x=0; x<NNRANGE; x++)
 		{
 		*fVNNout << xcoarse[x] << " \t " << VNN[x] << endl;
 		}
@@ -1023,25 +1083,27 @@ if(output_v2)
 // bool output_fixed_ave=false;
 ofstream *favgout;
 
+double CGF = 1.0;
+
 if(output_patterns)	//---"patterns" refers to both 1-point and 2-point functions.
 	{
-	clear_charray(out, charlength );
+	clear_charray(cpath, charlength );
 
 	//--------------------FIRST THE EQUILIBRIUM VALUE ------------------
-	sprintf(out, "%sFixed-occ-hist-eq_x_N_TF.txt",path.c_str() );
+	sprintf(cpath, "%sFixed-occ-hist-eq_x_N_TF.txt",pathout.c_str() );
+	favgout = new ofstream(cpath);
 
-	favgout = new ofstream(out);
 	for(x=0;x<Llim;x++)
 		{
 		*favgout << (x-(h[0] +h[1]))*CGF << " \t " << (OavN_eq[x])/CGF << " \t " << (OavTF_eq[x]/CGF) << endl;
 		}
 	(*favgout).close();
-
+	delete favgout;
 	//--------------------  NOW THE TRANSIENT VALUE --------------------
 	
-	clear_charray(out, charlength );
-	sprintf(out, "%sFixed-occ-hist-ti_x_N.txt",path.c_str() );
-	favgout = new ofstream(out);
+	clear_charray(cpath, charlength );
+	sprintf(cpath, "%sFixed-occ-hist-ti_x_N.txt",pathout.c_str() );
+	favgout = new ofstream(cpath);
 
 	for(x=0;x<Llim;x++)
 		{
@@ -1052,11 +1114,12 @@ if(output_patterns)	//---"patterns" refers to both 1-point and 2-point functions
 		*favgout << endl;
 		}
 	(*favgout).close();
+	delete favgout;
 		
 	//------now for the TF case------
-	clear_charray(out, charlength );
-	sprintf(out, "%sFixed-occ-hist-ti_x_TF.txt",path.c_str() );
-	favgout = new ofstream(out);
+	clear_charray(cpath, charlength );
+	sprintf(cpath, "%sFixed-occ-hist-ti_x_TF.txt",pathout.c_str() );
+	favgout = new ofstream(cpath);
 
 	for(x=0;x<Llim;x++)
 		{
@@ -1067,11 +1130,10 @@ if(output_patterns)	//---"patterns" refers to both 1-point and 2-point functions
 		*favgout << endl;
 		}
 	(*favgout).close();
-
+	delete favgout;
 	
 	//------------------------------------------------------------------
 
-	delete favgout;
 	}
 
 //======================   OUTPUT TWO-PART correlation  ======================
@@ -1081,13 +1143,13 @@ if(output_patterns)
 	{
 
 	//---------------   FIRST, EQUILIBRIUM DISTRIBUTIONS -------------
-	clear_charray(out, charlength );
+	clear_charray(cpath, charlength );
 	if(!krm_b)
-		sprintf(out, "%stwopartcorr_eq_%s.txt",path.c_str(),NGtype.c_str());
+		sprintf(cpath, "%stwopartcorr_eq_%s.txt",pathout.c_str(),NGtype.c_str());
 	else	
-		sprintf(out, "%stwopartcorr_eq_%s.txt",path.c_str(),NGtype.c_str());
+		sprintf(cpath, "%stwopartcorr_eq_%s.txt",pathout.c_str(),NGtype.c_str());
 
-	favgout = new ofstream(out);
+	favgout = new ofstream(cpath);
 	for(x=0;x<Llim;x++)
 		{
 		*favgout << x*CGF << " \t " << (output2partcorr_eq[x]/CGF) << endl;
@@ -1096,13 +1158,13 @@ if(output_patterns)
 
 	//---------------   NEXT, TRANSIENT DISTRIBUTIONS -------------
 
-	clear_charray(out, charlength );
+	clear_charray(cpath, charlength );
 	if(!krm_b)
-		sprintf(out, "%stwopartcorr_ti_%s.txt",path.c_str(),NGtype.c_str());
+		sprintf(cpath, "%stwopartcorr_ti_%s.txt",pathout.c_str(),NGtype.c_str());
 	else	
-		sprintf(out, "%stwopartcorr_ti_%s.txt",path.c_str(),NGtype.c_str());
+		sprintf(cpath, "%stwopartcorr_ti_%s.txt",pathout.c_str(),NGtype.c_str());
 
-	(*favgout).open(out);
+	(*favgout).open(cpath);
 
 
 	for(x=0;x<Llim;x++)
@@ -1123,11 +1185,11 @@ bool output_filling=true;
 
 if(output_filling)
 	{
-	clear_charray(out, charlength );
+	clear_charray(cpath, charlength );
 
-	sprintf(out, "%sfilling%s_t_v_rho_lines-are-tpoints-for-Vdistscoverage.txt",path.c_str(),NGtype.c_str());
+	sprintf(cpath, "%sfilling%s_t_v_rho_lines-are-tpoints-for-Vdistscoverage.txt",pathout.c_str(),NGtype.c_str());
 
-	favgout = new ofstream(out);
+	favgout = new ofstream(cpath);
 
 	for(j=0;j<total_obs_filling;j++)
 		{
@@ -1143,10 +1205,10 @@ bool output_meanstddevvtime=false;
 
 if(output_meanstddevvtime)
 	{
-	clear_charray(out, charlength );
-	sprintf(out, "%svoidstats%sBZ%s_t_mean_stddev_Ncheck.txt",path.c_str(),NGtype.c_str(),BZ.c_str() );
+	clear_charray(cpath, charlength );
+	sprintf(cpath, "%svoidstats%sBZ%s_t_mean_stddev_Ncheck.txt",pathout.c_str(),NGtype.c_str(),BZ.c_str() );
 
-	favgout = new ofstream(out);
+	favgout = new ofstream(cpath);
 
 	for(j=0;j<total_obs_filling;j++)
 		{
@@ -1155,8 +1217,9 @@ if(output_meanstddevvtime)
 	(*favgout).close();
 	delete favgout;
 }
+
 //======================   OUTPUT void DISTRIBUTION STATISTICS AT EACH TIME POINT  ======================
-bool output_vdist_timepoints=true;
+bool output_vdist_timepoints=false;
 
 double * Nvoidstot;
 
@@ -1169,9 +1232,9 @@ if(output_vdist_timepoints)
 		Nvoidstot[i] =0.0;
 		}
 
-	clear_charray(out, charlength );
-	sprintf(out, "%svoiddists%s_tps.txt",path.c_str(),NGtype.c_str());
-	favgout = new ofstream(out);
+	clear_charray(cpath, charlength );
+	sprintf(cpath, "%svoiddists%s_tps.txt",pathout.c_str(),NGtype.c_str());
+	favgout = new ofstream(cpath);
 
 	
 	for (i=0;i<total_obs_filling;i++)
@@ -1215,9 +1278,11 @@ if (get_voiddist_equilibrium)
 
 if (get_voiddist_equilibrium && Nvoidstotal_eq >=1 )
 	{
-	clear_charray(out, charlength );
-	sprintf(out, "%svoid_dist_eq.txt",path.c_str() );
-	favgout = new ofstream(out);
+	clear_charray(cpath, charlength );
+//	sprintf(cpath, "%svoid_dist_eq.txt",pathout.c_str() );
+	sprintf(cpath, "%svoid_dist_ICirrev-a%d.txt",pathout.c_str(),footprint );
+
+	favgout = new ofstream(cpath);
 
 
 	for(j=0;j<=Llim;j++)
@@ -1227,6 +1292,32 @@ if (get_voiddist_equilibrium && Nvoidstotal_eq >=1 )
 
 	delete favgout;
 	}
+//======================   OUTPUT OVERSHOOT DATA     ============================
+bool output_overshoot_phase_diag=true;
+//---try to use the explicitly equilibrium averages later.
+
+double maxrho  = get_array_max( NULL, fillingfrac , total_obs_filling);
+double rho_eq  = get_local_array_avg( fillingfrac, total_obs_filling-1 -2 , 2); 
+
+// double rho_eq2 = (double(Nvoidstotal_eq)/double(total_obs_eq));
+
+//--- this will take the last 5 data points averaged. 
+
+if(output_overshoot_phase_diag)
+	{
+	clear_charray(cpath, charlength );
+	sprintf(cpath, "%sovershootdat-%sBZ%s_muN-%.2f_E0-%.2f_maxrho_finalrho.txt",pathout.c_str(),NGtype.c_str(),BZ.c_str(), muN, E0 );
+
+	favgout = new ofstream(cpath);
+
+	
+
+	*favgout << muN << " \t " << E0 << " \t " << maxrho << " \t " << rho_eq << endl;
+
+
+	(*favgout).close();
+	delete favgout;
+}
 
 
 //======================  --  HOUSE KEEPING  --  ===================================================
@@ -1235,14 +1326,15 @@ if (get_voiddist_equilibrium && Nvoidstotal_eq >=1 )
 
 seed=gsl_rng_get(r);
 
-clear_charray(out, charlength );
-sprintf(out, "%srngSEED.in",path.c_str());
-ofstream fseedout(out);
+/*------- DONT REPLANT SEED FOR BATCH JOBS--------
+clear_charray(cpath, charlength );
+sprintf(cpath, "%srngSEED.in",path.c_str());
+ofstream fseedout(cpath);
 
  fseedout.precision(18);
  fseedout << seed;
  fseedout.close();
-
+----------------------------------*/
 
 //----------------- CLEAR UP ALLOCATED MEMORY -------------------------------
 

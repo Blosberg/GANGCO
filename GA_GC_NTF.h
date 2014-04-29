@@ -20,14 +20,14 @@ using namespace std;
 const bool TFs_allowed     = false; 	//--are TFs allowed in this simulation?
 const bool debugging       = false; 	//-- are we just doing a dummy run for debugging purposes?
 
-const bool bind_irrev      = false;	// do particles bind irreversibly? if so, then k_off always = 0.
+const bool bind_irrev      = true;	// do particles bind irreversibly? if so, then k_off always = 0.
 
 const bool choose_carefully = true;	//do we sum over the rates again every time to check the an/a0 ratio?
 
 const bool get_voiddist_equilibrium = true;
 
 
-const bool fixed_ref       = true;	//--Is the +1 nucleosome hard-coded at its position?
+const bool fixed_ref       = false;	//--Is the +1 nucleosome hard-coded at its position?
 					// BELOW: ARE THERE *OTHERS* that are also fixed in place?
 
 const bool set_fixed_initial = false;   // -- if true, then we set an initial set of particles 
@@ -154,7 +154,7 @@ double *muNarray; //----the array of ALL values of the chemical potential.
 double muTF0;
 int Llim;
 int M;
-int kHNG;
+int footprint;
 
 double *VNN;		//---effective VNN, after coarse-graining.
 double *VNTF;

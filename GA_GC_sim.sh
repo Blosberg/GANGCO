@@ -1,7 +1,7 @@
 #!/bin/bash
 #$ -cwd
-#$ -l h_vmem=1G,s_rt=18:0:0
-#$ -t 1-3
+#$ -l h_vmem=1G,s_rt=1:0:0
+#$ -t 1-10
 #$ -m eas
 #
 # The lines above are instructions to SGE.
@@ -13,9 +13,9 @@
 # Start batch jobs via:
 # qsub ./myjob.sh
 
-NGtype="HNG"
+NGtype="LNG"
 
-WORKDIR=./NAR_longpattern_HNG155_${NGtype}/job.${SGE_TASK_ID}
+WORKDIR=./PRL_softdimers_${NGtype}/job.${SGE_TASK_ID}
 
 # create a local directory for this job only
 if [ ! -e $WORKDIR ]; then
