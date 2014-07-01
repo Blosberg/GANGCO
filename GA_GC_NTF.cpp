@@ -101,7 +101,7 @@ double krm_val;	//---if we do, how strongly do they act?
 bool should_plot_snapshots;
 bool should_plot_kymo;
 
-string path, pathout;
+string path, pathout, output_folder;
 int Nplots2makeshort, Nplots2makelong;
 int Nplots2make_kymo;
 
@@ -182,12 +182,31 @@ double t_trans; //---- the 'transient' time period after which equilibrium prope
 
 //-----------------------------------------------------------------------------------------------
 
-//-READ IN PARAMETERS FOR THE SIMULATION FROM THE IN FILE.-----------------
+//  ----  READ IN PARAMETERS FOR THE SIMULATION FROM THE IN FILE.-----------------
+
 char cpath[charlength];
 clear_charray(cpath, charlength );
 sprintf(cpath, "./GA_GC_NTF.in"); //----input file should always be in the working directory.
-ifstream datin(cpath);
-if(datin.fail())
+ifstream datin;
+
+datin.open(cpath);
+
+i=0;
+while( datin.fail() ) 
+	{
+
+	cout << "\n failed accessing input file " << i << "times.";	
+
+	i++;
+	sleep(1); // wait for a second to avoid race condition.
+	if( i >= 100)
+		{
+		break; // --- avoid an infinite loop.
+		}	
+	datin.open(cpath);
+	
+	}
+if( datin.fail() )
 	{
 	cout << "\n ERROR, can't find input file. exiting \n";
 	exit(1);
@@ -205,6 +224,7 @@ datin  >> should_plot_snapshots >> Nplots2makeshort  >> Nplots2makelong;
 datin  >> should_plot_kymo      >> Nplots2make_kymo;
 datin  >> BZcond                >> BZalpha;
 
+datin  >> output_folder;
 datin  >> paritycheck;  //---this number is always 8888888 in the input file. 
 // If it gets read as something different then somethings wrong with the I/O formatting.
 
@@ -313,7 +333,10 @@ int const RMRANGE  = 2*footprint;
 //-------------------------- setup the output directory and file --------------------------
 
 clear_charray(cpath, charlength );
-sprintf(cpath, "./phasespace_output_muN-%.2f_E0-%.2f/", muN, E0);
+// sprintf(cpath, "./%s_muN-%.2f_E0-%.2f/", output_folder.c_str(), muN, E0);
+sprintf(cpath, "./muN-%.2f_E0-%.2f/", muN, E0);
+
+
 pathout = cpath;
 
 if ( DirectoryExists( pathout.c_str()  ) )
@@ -1013,8 +1036,8 @@ if(calculate_entropy)
 
 	for(i=0;i<total_obs_filling;i++)
 		{ 
-		*fentropyout << Z_all_t[i].tval  << " \t " << Z_all_t[i].S << " \t " << Z_all_t[i].H << "\t" << Z_all_t[i].Htot << "\t" << Z_all_t[i].Nave << endl;
-
+		*fentropyout << Z_all_t[i].tval  << " \t " << (1.0/float(Llim))*Z_all_t[i].S << " \t " << (1.0/float(Llim))*Z_all_t[i].H << "\t" << (1.0/float(Llim))*Z_all_t[i].Htot << "\t" << (1.0/float(Llim))*Z_all_t[i].Nave << endl;
+		//----normalized by Llim now to imply energetic quantities PER LATTICE SITE.
 		}
 
 	(*fentropyout).close();
@@ -1219,9 +1242,10 @@ if(output_meanstddevvtime)
 }
 
 //======================   OUTPUT void DISTRIBUTION STATISTICS AT EACH TIME POINT  ======================
-bool output_vdist_timepoints=false;
+bool output_vdist_timepoints=true;
 
 double * Nvoidstot;
+ofstream * favgout2;
 
 if(output_vdist_timepoints)
 	{
@@ -1232,11 +1256,6 @@ if(output_vdist_timepoints)
 		Nvoidstot[i] =0.0;
 		}
 
-	clear_charray(cpath, charlength );
-	sprintf(cpath, "%svoiddists%s_tps.txt",pathout.c_str(),NGtype.c_str());
-	favgout = new ofstream(cpath);
-
-	
 	for (i=0;i<total_obs_filling;i++)
 		{
 		for(j=0;j<=Llim;j++)
@@ -1246,20 +1265,33 @@ if(output_vdist_timepoints)
 		}
 
 
+	//--------------------------------------
+	clear_charray(cpath, charlength );
+	sprintf(cpath, "%svoiddists%s_tps.txt",pathout.c_str(),NGtype.c_str());
+	favgout = new ofstream(cpath);
+
+	clear_charray(cpath, charlength );
+	sprintf(cpath, "%svoiddens%s_tps.txt",pathout.c_str(),NGtype.c_str());
+	favgout2 = new ofstream(cpath);
+	//----------------------------------------
+
 	for(j=0;j<=Llim;j++)
 		{
 		for (i=0;i<total_obs_filling;i++)
 			{
 			*favgout << (double(void_histogram[i][j]) /Nvoidstot[i])  << "\t";
+			*favgout2 << (double(void_histogram[i][j]) / ( double(Llim*numtrials) ))  << "\t";
 			}
-		*favgout << endl;	//----produces columns of void sizes with common time points ('i') at each. 	
-					//----the rows are then constant void size at increasing t. 
+		*favgout  << endl;	//----produces columns of void sizes with common time points ('i') at each. 	
+		*favgout2 << endl;	//----the rows are then constant void size at increasing t. 
 		}
-
 
 
 	(*favgout).close();
 	delete favgout;
+
+	(*favgout2).close();
+	delete favgout2;
 
 	delete [] Nvoidstot;
 	}
@@ -1279,15 +1311,14 @@ if (get_voiddist_equilibrium)
 if (get_voiddist_equilibrium && Nvoidstotal_eq >=1 )
 	{
 	clear_charray(cpath, charlength );
-//	sprintf(cpath, "%svoid_dist_eq.txt",pathout.c_str() );
-	sprintf(cpath, "%svoid_dist_ICirrev-a%d.txt",pathout.c_str(),footprint );
-
+	sprintf(cpath, "%svoid_dist_eq.txt",pathout.c_str() );
+ 
 	favgout = new ofstream(cpath);
 
 
 	for(j=0;j<=Llim;j++)
 		{
-		*favgout << (double(void_histogram_equilibrium[j]) /Nvoidstotal_eq)  << endl;
+		*favgout << fillingfrac[total_obs_filling-1]*(double(void_histogram_equilibrium[j]) /Nvoidstotal_eq) <<  " \t " << (double(void_histogram_equilibrium[j]) /Nvoidstotal_eq)  << endl;
 		}
 
 	delete favgout;
@@ -1297,7 +1328,7 @@ bool output_overshoot_phase_diag=true;
 //---try to use the explicitly equilibrium averages later.
 
 double maxrho  = get_array_max( NULL, fillingfrac , total_obs_filling);
-double rho_eq  = get_local_array_avg( fillingfrac, total_obs_filling-1 -2 , 2); 
+double rho_eq  = get_local_array_avg( fillingfrac, (total_obs_filling-1) -1 , 1); //--averages over the last 3 entries 
 
 // double rho_eq2 = (double(Nvoidstotal_eq)/double(total_obs_eq));
 

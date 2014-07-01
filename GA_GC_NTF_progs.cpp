@@ -560,9 +560,9 @@ if( choose_carefully)
 	
 		if(fabs(local_errtest) > 1E-7)
 			{
-			cout << "\n HUGE discrepency discovered.... exiting.\n";
-			*log << "\n HUGE discrepency discovered.... exiting.\n";
-			exit(1);
+			cout << "\n WARNING: significant discrepency discovered. \n";
+			*log << "\n WARNING: significant discrepency discovered. \n";
+//			exit(1);
 			}
 		check_rates();
 		}
@@ -878,7 +878,7 @@ return calc_rates( min, max,n);
 
 int GAdata::add_Nuc( int x)
 {
-int i, min=0, max=0, dummy=0;
+int i, min=0, max=0;
 bindevent Q; Q.t = t;  Q.species = 1;  Q.onoroff = 1;
 
 int pR = pos[x].part_right;
@@ -931,7 +931,6 @@ while(1)
 		{
 		i=right(i);	// increment position under consideration.
 		}
-
 	}
 max=i;
 
@@ -2061,7 +2060,9 @@ int j;
 //			*log << "\n WARNING -repeating observation " << repetition << " times in should_observe_filling.\n";
 			}
 		else
+			{
 			result=true;
+			}
 
 		get_filling_frac( );
 	 	increment_void_histogram(void_histogram);
@@ -2749,7 +2750,7 @@ if(fabs( t - obs_count_filling*dt_obs) > dt_obs )
 filling_frac[obs_count_filling] = rhoi;
 }
 //****************************************************************************
-int GAdata::increment_void_histogram(int** void_hist)
+int GAdata::increment_void_histogram(int** void_hist) //---- this just counts the incidence of voids, doesn't normalize for time or voidnum.
 {
 int N_so_far =0;
 int ref_point; 
@@ -3595,7 +3596,7 @@ for(x=0;x<Llim;x++)
 	{ 
 	flag = 7101; 
 	*log << "\n rate discrepancy in a0 at position x=" << x << ", exiting.\n";
-//	*pos[x].a_removeN = check_a_removeN;
+	*pos[x].a_removeN = check_a_removeN;
 	process_error(x);
 	}
 //-----a1----------
@@ -3611,7 +3612,7 @@ for(x=0;x<Llim;x++)
 	{ 
 	flag = 7102; 
 	*log << "\n rate discrepancy in a1 at position x=" << x << ", autocorrecting.\n";
-//	*pos[x].a_addN = check_a_addN;
+	*pos[x].a_addN = check_a_addN;
 	process_error(x);
 	}
 //-----a2----------
@@ -3627,7 +3628,7 @@ for(x=0;x<Llim;x++)
 	{ 
 	flag = 7103; 
 	*log << "\n rate discrepancy in a2 at position x=" << x << ", autocorrecting.\n";
-//	*pos[x].a_sNL = check_a_sNL;
+	*pos[x].a_sNL = check_a_sNL;
 	process_error(x);
 	}
 //-----a3----------
@@ -3643,7 +3644,7 @@ for(x=0;x<Llim;x++)
 	{ 
 	flag = 7104; 
 	*log << "\n rate discrepancy in a3 at position x=" << x << ", autocorrecting.\n";
-//	*pos[x].a_sNR = check_a_sNR;
+	*pos[x].a_sNR = check_a_sNR;
 	process_error(x);
 	}
 //-----a4----------
@@ -3659,7 +3660,7 @@ for(x=0;x<Llim;x++)
 	{ 
 	flag = 7105; 
 	*log << "\n rate discrepancy in a4 at position x=" << x << ", autocorrecting.\n";
-//	*pos[x].a_removeTF = check_a_removeTF;
+	*pos[x].a_removeTF = check_a_removeTF;
 	process_error(x);
 	}
 //-----a5----------
@@ -3675,7 +3676,7 @@ for(x=0;x<Llim;x++)
 	{ 
 	flag = 7106; 
 	*log << "\n rate discrepancy in a5 at position x=" << x << ", autocorrecting.\n";
-//	*pos[x].a_addTF = check_a_addTF;
+	*pos[x].a_addTF = check_a_addTF;
 	process_error(x);
 	}
 //-----a6----------
@@ -3691,7 +3692,7 @@ for(x=0;x<Llim;x++)
 	{ 
 	flag = 7107; 
 	*log << "\n rate discrepancy in a6 at position x=" << x << ", autocorrecting.\n";
-//	*pos[x].a_sTFL = check_a_sTFL;
+	*pos[x].a_sTFL = check_a_sTFL;
 	process_error(x);
 	}
 //-----a7----------
@@ -3707,7 +3708,7 @@ for(x=0;x<Llim;x++)
 	{ 
 	flag = 7108; 
 	*log << "\n rate discrepancy in a6 at position x=" << x << ", autocorrecting.\n";
-//	*pos[x].a_sTFR = check_a_sTFR;
+	*pos[x].a_sTFR = check_a_sTFR;
 	process_error(x);
 	}
 
