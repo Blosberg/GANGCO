@@ -1,5 +1,7 @@
 /*----- GA_GC_NTF_progs.cpp: functions/subroutines for the grand-canonical nucleosome gillespie algorithm.-----
-// ---last updated on  Wed Apr 23 15:32:48 CEST 2014  by  ga79moz  at location  TUM , murter
+// ---last updated on  Tue Jul 1 16:59:36 CEST 2014  by  ga79moz  at location  TUM , sylt
+
+//  changes from  Tue Jul 1 16:59:36 CEST 2014 : set output folder to just local/muN-..., and added an output file for the void _density_ in addition to distribution
 
 //  changes from  Wed Apr 23 15:32:48 CEST 2014 : removed VNN_S/LNG_calc_smallp definition from this file -now the only definition is in bren_lib.h
 

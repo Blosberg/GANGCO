@@ -1,5 +1,7 @@
 /**IMPLEMENTATION OF THE GILLESPIE ALGORITHM ON THE MOTION OF NUCLEOSOMES, TREATED AS 1-D PARTICLES ALONG DNA
-// ---last updated on  Tue Feb 18 18:27:29 CET 2014  by  Brendan.Osberg  at location  th-ws-e537
+// ---last updated on  Tue Jul 1 16:59:36 CEST 2014  by  ga79moz  at location  TUM , sylt
+
+//  changes from  Tue Jul 1 16:59:36 CEST 2014 : set output folder to just local/muN-..., and added an output file for the void _density_ in addition to distribution
 
 //  changes from  Tue Feb 18 18:27:29 CET 2014 : implemented simplified run for small particles. Tested, works.
 
@@ -198,7 +200,7 @@ while( datin.fail() )
 	cout << "\n failed accessing input file " << i << "times.";	
 
 	i++;
-	sleep(1); // wait for a second to avoid race condition.
+//	sleep(1); // wait for a second to avoid race condition.
 	if( i >= 100)
 		{
 		break; // --- avoid an infinite loop.
@@ -1275,8 +1277,11 @@ if(output_vdist_timepoints)
 	favgout2 = new ofstream(cpath);
 	//----------------------------------------
 
-	for(j=0;j<=Llim;j++)
+	for(j=0;j<Llim;j++)
 		{
+		//---we simply don't output the last "L" void value to the data file as it really just means an empty array.
+		// we want to sum over these data to get the density of particle so to ensure one-to-one correspondence between number of voids counted and number of particles present, we omit the last void value from the file, which really indicates no particles at all.
+
 		for (i=0;i<total_obs_filling;i++)
 			{
 			*favgout << (double(void_histogram[i][j]) /Nvoidstot[i])  << "\t";
@@ -1311,7 +1316,7 @@ if (get_voiddist_equilibrium)
 if (get_voiddist_equilibrium && Nvoidstotal_eq >=1 )
 	{
 	clear_charray(cpath, charlength );
-	sprintf(cpath, "%svoid_dist_eq.txt",pathout.c_str() );
+	sprintf(cpath, "%svoideq_dens_dist.txt",pathout.c_str() );
  
 	favgout = new ofstream(cpath);
 

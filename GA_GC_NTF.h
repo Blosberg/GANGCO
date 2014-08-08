@@ -20,7 +20,7 @@ using namespace std;
 const bool TFs_allowed     = false; 	//--are TFs allowed in this simulation?
 const bool debugging       = false; 	//-- are we just doing a dummy run for debugging purposes?
 
-const bool bind_irrev      = true;	// do particles bind irreversibly? if so, then k_off always = 0.
+const bool bind_irrev      = false;	// do particles bind irreversibly? if so, then k_off always = 0.
 
 const bool choose_carefully = true;	//do we sum over the rates again every time to check the an/a0 ratio?
 
