@@ -1,6 +1,6 @@
 #IDIR =/usr/include/
 CC=g++
-CFLAGS  =  -I/sw/include -I/home/b/Brendan.Osberg/grad_research_phd/project/code_repository/ -ggdb
+CFLAGS  =  -I/sw/include -I/home/t30/ger/ga79moz/grad_research_phd/project/code_repository/ -ggdb
 LDFLAGS =  -L/sw/lib -lgsl -lgslcblas -lm
 
 DEPS = GA_GC_NTF.h /home/b/Brendan.Osberg/grad_research_phd/project/code_repository/GA_absolute_standards.h /home/b/Brendan.Osberg/grad_research_phd/project/code_repository/bren_lib.h /home/b/Brendan.Osberg/grad_research_phd/project/code_repository/GA_NTF_standards.h

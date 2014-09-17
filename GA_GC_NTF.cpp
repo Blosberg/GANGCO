@@ -257,11 +257,10 @@ bool output_patterns=true;	//---should we print out the 2-part correlation funct
 
 //-----altered startup condition begins here.--------------------------------------------------------------------------
 
-if( (TASKID >= 1)  && (TASKID <= 100)  )
+if( (TASKID >= 1)  && (TASKID <= 10)  )
 	{
 	irho_target=155;
 	}
-/*-------------temporary fix to ensure we only sample the HNG155 run
 else if( (TASKID >= 11)  && (TASKID <= 20)  )
 	{
 	irho_target=165;
@@ -270,20 +269,13 @@ else if( (TASKID >= 21)  && (TASKID <= 30)  )
 	{
 	irho_target=180;
 	}
-*/
 else
 	{
 	cout << "\n ERROR: TASKID outside of bounds. exiting.\n";
 	exit(1);
 	}
-///@@@@@@@DELETE THIS 
-if(NGtype!="HNG")
-	{
-	cout << "\n ERROR: this is supposed to be a HNG 155 run.\n";
-	exit(1);
-	}
-//-------- DOWN TO HERE ------
 
+//---different way of spreading out the irho_target
 //@@@ irho_target  = irho_target + 5*(TASKID-1); 
 
 /****************************************************
@@ -596,7 +588,6 @@ for(i=0;i<total_obs_filling;i++)
 	}
 
 //-----------get arrays for two-TF correlation------------------------------
-
 
 int nbins = floor((max_tcorr)/dtau_plot);
 
