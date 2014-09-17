@@ -19,11 +19,15 @@ eps=$(head -$eps_i  ${eps_array_file} | tail -1)
 # echo " executing job " ${JOB_ID} " with paramaters : " $NGtype $muN $eps >> job_${JOB_ID}.log
 
 
-echo " NOW executing job " ${JOB_ID}.${SGE_TASK_ID} " with paramaters : " $NGtype $muN $eps >> job_${JOB_ID}.${SGE_TASK_ID}.log
+
+D_before=$(date)
+echo " executing job " ${JOB_ID}.${SGE_TASK_ID} " with paramaters : " $NGtype $muN $eps  " at " $D_before >> job_${JOB_ID}.${SGE_TASK_ID}.log
 
  ./GA_GC_NTF.x $NGtype ${SGE_TASK_ID} $muN $eps
 
-echo " Job completed successfully. Now terminating. " >> job_${JOB_ID}.${SGE_TASK_ID}.log
+D_after=$(date)
+
+echo " Job finished executable at " $D_after ", Now terminating. " >> job_${JOB_ID}.${SGE_TASK_ID}.log
 
 # copy all output files back to your home directory
 # and clean up

@@ -3,7 +3,7 @@
 
 #---------------------------------------------------------------------------------------------------------------------------
 
-NGtype="LNG" #----- command line.
+NGtype="HNG" #----- command line.
 #--------------------------------
 
 kS_N=0.0
@@ -11,15 +11,15 @@ kA_N=1.0
 kS_TF=0.0
 kA_TF=1.0
 
-Llim="500"
+Llim="100"
 t0="0.0000000001"
-tf="200"
-t_trans=50.0
+tf="800"
+t_trans=100.0
 dt_obs=1.0
 dtau_plot=0.1
 max_tcorr=1; 
 
-a="10"  
+a="2"  
 
 mu_TF=0.0
 
@@ -39,16 +39,25 @@ BZalpha=1.0
 
 parity_check="88885888"
 num_trials=100
+
+output_subfolder="muN_scan"
+
+#run_time="72:59:0"
+run_time="1:59:0"
 		# ------------------pathout="./"
 		# ----- we don't specify path_out here. path_out="./"
 
-job_sub_script=GA_jobsub_TUM.sh
-WORKDIR=./GA_output_on_space/job_GA_phasespace_a-${a}_output_${NGtype}/
+job_sub_script=GA_Hard_Dimers_muscan.sh
+WORKDIR=./GA_output_on_space/job_GA_hard_dimers_muscan_a-${a}_L-${Llim}_N-${num_trials}_output-${NGtype}/
 
 #----------------------------------------------------------------------------------------
 
-# eps_array_file="/home/t30/ger/ga79moz/grad_research_phd/project/Nucl/GA/GA_GC_NTF/array_eps_a"${a}".txt"
-eps_array_file="/home/t30/ger/ga79moz/grad_research_phd/project/Nucl/GA/GA_GC_NTF/temp_earr.txt"
+eps_array_file="/home/t30/ger/ga79moz/grad_research_phd/project/Nucl/scan_space_eps_muN/array_eps_a"${a}".txt"
+muN_array_file="/home/t30/ger/ga79moz/grad_research_phd/project/Nucl/scan_space_eps_muN/array_muN_a"${a}".txt"
+
+#---- FOR THE THERMO-SCANS WE USE A SPECIFIC FILE SET
+# eps_array_file="/home/t30/ger/ga79moz/grad_research_phd/project/Nucl/scan_space_eps_muN/array_eps_a"${a}"_THERMO.txt"
+# muN_array_file="/home/t30/ger/ga79moz/grad_research_phd/project/Nucl/scan_space_eps_muN/array_muN_a"${a}"_THERMO.txt"
 
 
 
@@ -60,8 +69,6 @@ else
    exit 
 fi
 
-# muN_array_file="/home/t30/ger/ga79moz/grad_research_phd/project/Nucl/GA/GA_GC_NTF/array_muN_a"${a}".txt"
-muN_array_file="/home/t30/ger/ga79moz/grad_research_phd/project/Nucl/GA/GA_GC_NTF/temp_marr.txt"
 
 if [ -f ${muN_array_file} ];
 then
@@ -100,6 +107,7 @@ echo $BZcond     $BZalpha                                       >> GA_GC_NTF.in
 
 echo ""                                >>  GA_GC_NTF.in
 
+echo  $output_subfolder                >>  GA_GC_NTF.in
 echo  $parity_check                    >>  GA_GC_NTF.in
 echo  $num_trials                      >>  GA_GC_NTF.in
 # ------echo  $pathout                         >>  GA_GC_NTF.in
@@ -122,19 +130,18 @@ OLDDIR=`pwd`
 #---------COPY NECESSARY FILES OVER TO THE WORK DIRECTORY-------
 cp  GA_GC_NTF.x                   ${WORKDIR}/
 cp  GA_GC_NTF.in                  ${WORKDIR}/
-cp  mu_v_irho_folder/mu_v_irho*   ${WORKDIR}/
 echo $RANDOM  >                   ${WORKDIR}/rngSEED.in
 
 #-----------------  NOW BUILD THE SCRIPT FILE  -----------------
 
-echo "#!/bin/bash"                     >   ${WORKDIR}${job_sub_script}
-echo "#$ -S /bin/sh"                   >>  ${WORKDIR}${job_sub_script}
+echo "#!/bin/bash"                      >   ${WORKDIR}${job_sub_script}
+echo "#$ -S /bin/sh"                    >>  ${WORKDIR}${job_sub_script}
 
-echo "#$ -cwd"                         >>  ${WORKDIR}${job_sub_script}
-echo "#$ -m eas"                       >>  ${WORKDIR}${job_sub_script}
-echo "#$ -l h_vmem=500M,s_rt=12:59:0"  >>  ${WORKDIR}${job_sub_script}
-echo "#$ -t 1-"${num_tasks}            >>  ${WORKDIR}${job_sub_script}
-
+echo "#$ -cwd"                          >>  ${WORKDIR}${job_sub_script}
+# echo "#$ -m eas"                       >>  ${WORKDIR}${job_sub_script}
+echo "#$ -l h_vmem=500M,s_rt=${run_time}"   >>  ${WORKDIR}${job_sub_script}
+echo "#$ -t 1-"${num_tasks}             >>  ${WORKDIR}${job_sub_script}
+# echo "#$ -q lagrange"                   >>  ${WORKDIR}${job_sub_script}
 
 echo ""                                 >>  ${WORKDIR}${job_sub_script}
 echo "#-----------------------------"   >>  ${WORKDIR}${job_sub_script}
@@ -154,7 +161,7 @@ cat GA_jobsub_tail.sh                   >>  ${WORKDIR}${job_sub_script}
 #-----------GO TO THE WORK DIRECTORY AND EXECUTE ----------------
 cd $WORKDIR
 
-qsub ${job_sub_script}
+# qsub ${job_sub_script}
 
 #--------------------------------------------
 

@@ -97,8 +97,8 @@ int numtrials;
 double kS_N,  kA_N;   // BASIC RATE CONSTANTS FOR SLIDING AND ADDITION/REMOVAL for nucleosomes.
 double kS_TF, kA_TF;  //     "		"		"		"      for transcription factors.	
 
-bool krm_b;	//---do we or do we not have active remodellers in the system.
-double krm_val;	//---if we do, how strongly do they act?
+bool krm_b;	//---  do we or do we not have active remodellers in the system.
+double krm_val;	//---  if we do, how strongly do they act?
 
 bool should_plot_snapshots;
 bool should_plot_kymo;
@@ -335,8 +335,9 @@ int const RMRANGE  = 2*footprint;
 //-------------------------- setup the output directory and file --------------------------
 
 clear_charray(cpath, charlength );
-// sprintf(cpath, "./%s_muN-%.2f_E0-%.2f/", output_folder.c_str(), muN, E0);
-sprintf(cpath, "./muN-%.2f_E0-%.2f/", muN, E0);
+
+sprintf(cpath, "./%s_muN-%.2f_E0-%.2f/", output_folder.c_str(), muN, E0);
+//   sprintf(cpath, "./   muN-%.2f_E0-%.2f/", muN, E0);
 
 
 pathout = cpath;
@@ -1234,6 +1235,7 @@ if(output_meanstddevvtime)
 	sprintf(cpath, "%svoidstats%sBZ%s_t_mean_stddev_Ncheck.txt",pathout.c_str(),NGtype.c_str(),BZ.c_str() );
 
 	favgout = new ofstream(cpath);
+	(*favgout).precision(10);
 
 	for(j=0;j<total_obs_filling;j++)
 		{
