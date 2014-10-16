@@ -31,6 +31,8 @@
 #include <cmath>
 #include <math.h>
 #include <queue>  //in order to stack the events of binding/unbinding
+#include <dirent.h>
+
 #include "GA_GC_NTF.h"
 #include <GA_NTF_standards.h>
 #include <GA_absolute_standards.h>
