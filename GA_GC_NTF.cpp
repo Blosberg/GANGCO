@@ -1,5 +1,7 @@
-/**IMPLEMENTATION OF THE GILLESPIE ALGORITHM ON THE MOTION OF NUCLEOSOMES, TREATED AS 1-D PARTICLES ALONG DNA
-// ---last updated on  Tue Jul 1 16:59:36 CEST 2014  by  ga79moz  at location  TUM , sylt
+/*----- IMPLEMENTATION OF THE GILLESPIE ALGORITHM ON THE MOTION OF NUCLEOSOMES, TREATED AS 1-D PARTICLES ALONG DNA
+// ---last updated on  Fri Oct 17 15:49:24 CEST 2014  by  ga79moz  at location  TUM , xenopus
+
+//  changes from  Fri Oct 17 15:49:24 CEST 2014 : made this small_particles branch the master branch in Git. Git is now used as the change-tracker, check the history of the git repository from this point forward.
 
 //  changes from  Tue Jul 1 16:59:36 CEST 2014 : set output folder to just local/muN-..., and added an output file for the void _density_ in addition to distribution
 
