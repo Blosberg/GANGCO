@@ -23,4 +23,4 @@ debug:
 	g++ -ggdb GA_GC_NTF.cpp  GA_GC_NTF_progs.cpp -o GA_GC_NTF.x $(CFLAGS) $(LDFLAGS) 
 
 voidcorr:
-	g++ -ggdb GA_voidsize_corr.cpp -o GA_voidsize_corr.x $(CFLAGS) $(LDFLAGS) 
+	g++ GA_voidsize_corr.cpp -o GA_voidsize_corr.x $(CFLAGS) $(LDFLAGS) 
