@@ -143,7 +143,7 @@ if (  ( (NGtype=="SNG"  || NGtype=="LNG" ) && argc != 5) || (NGtype=="HNG" && ar
 	}
 
 TASKID      = atoi(argv[2]);
-muN_input   = atof(argv[3]);
+muN_input   = atof(argv[3]); //----this should be input in "per footprint" convention; scaled to lattice site within the code.
  
 
 if( (NGtype=="SNG"  || NGtype=="LNG" ) )
@@ -237,6 +237,15 @@ datin.close();
 
 //-----------------------------------------------------------------------------------------------
 
+
+//--------- @@@ THESE OPTIONS denote per-footprint input... JUST FOR K-MER TESTING------
+footprint=TASKID;
+
+muN = muN_input-gsl_sf_log(double(footprint)); //---- here convert per-footprint to per-lattice site muN
+E0  = E0/double(footprint);
+// ---------------------@@@ DELETE down to here -----------------------------
+
+
 if( paritycheck != 88885888 )
 	{
 	cout << "\n ERROR in parity check -input parameters are disordered somehow. Check your input file.\n";
@@ -288,20 +297,19 @@ double tl,tu;	//---upper and lower bounds of the time necessary for convergence
 		//---using punish/reward schemes respectively.
 double ltf;	//---log of the final time. This is just a dummy temp variable.
 
+
+
+/***************************************   THIS IS JUST FOR BOLTZMANN ON RELIEF CONDITIONS ********************************
+
+
 if(boltzmann_on_removal)
 	{
 	if (TASKID == 2)  
-		{
-		tf=0.0008;
-		}
+		{tf=0.0008;}
 	else if (TASKID == 4)  
-		{
-		tf=0.08;
-		}
+		{tf=0.08;}
 	else if( TASKID == 7 )
-		{
-		tf=0.8;
-		}
+		{tf=0.8;}
 	}
 else if(boltzmann_on_addrem_intermed)
 	{
@@ -309,17 +317,12 @@ else if(boltzmann_on_addrem_intermed)
 	tu=tf;	//----upperbound fixed as per addition rate.
 
 	if (TASKID == 2)  
-		{
-		tl=0.0008;
-		}
+		{tl=0.0008;}
 	else if (TASKID == 4)  
-		{
-		tl=0.08;
-		}
+		{tl=0.08;}
 	else if( TASKID == 7 )
-		{
-		tl=0.8;
-		}
+		{tl=0.8;}
+
 	ltf = gsl_sf_log(tl) + BZalpha* ( gsl_sf_log(tu) - gsl_sf_log(tl) );
 	tf  = gsl_sf_exp(ltf);
 	cout << "\n With intermediate Boltzmann condition alpha = " << BZalpha << ", tf is set to " << tf << endl;
@@ -327,19 +330,17 @@ else if(boltzmann_on_addrem_intermed)
 	} 
 	//----else if boltzmann_on_add, then just leave tf as is -don't change anything.
 
-
-// muN is just read from command line.
-muN=muN_input;
+**************************************************************************************************************************/
 
 int const RMRANGE  = 2*footprint;
-
 
 //-------------------------- setup the output directory and file --------------------------
 
 clear_charray(cpath, charlength );
 
-sprintf(cpath, "./%s_muN-%.2f_E0-%.2f/", output_folder.c_str(), muN, E0);
 //   sprintf(cpath, "./   muN-%.2f_E0-%.2f/", muN, E0);
+//   sprintf(cpath, "./%s_muN-%.2f_E0-%.2f_perfp_k-%d/", output_folder.c_str(), muN+gsl_sf_log(footprint), E0*footprint, footprint);
+sprintf(cpath, "./%s_rhoeq-1.04_E0-%.2f_perfp_k-%d/", output_folder.c_str(), E0*footprint, footprint);
 
 
 pathout = cpath;
