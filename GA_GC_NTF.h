@@ -37,6 +37,9 @@ const bool set_fixed_initial = false;   // -- if true, then we set an initial se
 const bool calculate_entropy = false; 	// if true, then count configurations at every  
 					// time point, for every iteration. 
 
+const double VLJ_rm = 1.125022076; 	// --- for Lennard-Jones potential, this is the distance of the potential 
+					// --- minimum in units of the footprint size (i.e. the crossover point)
+	
 /********************************************************************/
 struct bindevent
 {

@@ -30,7 +30,7 @@
 
 #include <gsl/gsl_rng.h>
 int VNN_LNG_calc_smallp(double * potential, const int a, const double E0);
-int VNN_SNG_calc_smallp(double * potential, const int NNRANGE, const int a, const double E0);
+int VNN_SNG_calc_smallp(double * potential, const int NNRANGE, const int a, const double rm, const double E0);
 //---the SNG func has an extra input parameter for the LJ potential.
 
 int coarse_grain(const double * Vin_full, double * xcoarse, double * Vout_coarse, const int L, const int p, const double CGF); //--coarse-grain the 2-body interaction potential into a smaller system.
@@ -226,7 +226,7 @@ if(SNG)
 	{
 	min_dist=1;	//---minimum distance that _can_ exist between 2 adjacent particles.
 			//---in this case it's 1 (in principle), but that close is energetically costly.
-	VNN_SNG_calc_smallp(VNN_full, NNRANGE, footprint, E0);
+	VNN_SNG_calc_smallp(VNN_full, NNRANGE, footprint, VLJ_rm, E0);
 	}
 else if(LNG)
 	{
@@ -851,7 +851,7 @@ if( ( Nucnum + TFnum) > 1 )
 	}
     min=i;
 
-	//-----------WRAP AROUND------------------
+	//-----------Optimization (causes wrap-around problems when NNRANGE is larger than 1/2 Llim)------------------
 	if ( distance(x,max) > (NNRANGE))
 		max = ((x+(NNRANGE))%Llim);
 	if ( distance(min,x) > (NNRANGE))
@@ -860,14 +860,19 @@ if( ( Nucnum + TFnum) > 1 )
 		min=min+Llim;
 	//----------------------------------------
     }
-else
+else if( ( Nucnum + TFnum) == 1 )
 	{
-	min=x-NNRANGE;
-	if(min<0)
-		min=min+Llim;
-	max = ((x+NNRANGE)%Llim);
+	min = x;
+	max = x;
 	
 	reset_prevnext_pointers();
+	}
+else
+	{		//----  pairs that are eligible for remodelling.
+	flag=235623; //----UNCLEAR NUMBER OF PARTICLES.
+	recentRx=-20;
+	process_error(x);	
+	exit(1);
 	}
 
 Nucnum--;
@@ -943,22 +948,25 @@ while(1)
 	{
 	pos[i].part_right=x;	// make this position's next left particle the former left particle of the current one.
 	if( ( pos[i].state == 1) || ( pos[i].state == 2) )
+		{
 		break;	
-
-	i=left(i);
+		}
+	else
+		{
+		i=left(i);
+		}
 	}
 //------------------------------------------------------------------------
 min=i;
 
-
-//-----------OPTIMIZATION ------------------
+/*-----------OPTIMIZATION (causes wrap-around problems when NNRANGE is large )------------------
 if ( distance(x,max) > (NNRANGE))
 	max = ((x+(NNRANGE))%Llim);
 if ( distance(min,x) > (NNRANGE))
 	min = x-(NNRANGE);
 if(min<0)
 	min=min+Llim;
-//-------------------------------------*/
+//---------------------------------------------------------------------------------------------*/
 
 
 Nucnum++;
@@ -1044,14 +1052,6 @@ else
 //------------------------------------------------------------------------
 min=i;
 
-//-----------OPTIMIZATION -----------------
-if ( distance(xp,max) > (NNRANGE))
-	max = ((x+(NNRANGE))%Llim);
-if ( distance(min,xp) > (NNRANGE))
-	min = x-(NNRANGE);
-if(min<0)
-	min=min+Llim;
-//----------------------------------------
 recentRx=2;
 
 return calc_rates( min, max,n); 
@@ -1127,15 +1127,6 @@ if(partnum ==1)
 else	
 	pos[xp].part_left=pL; 	//whatever was to the left of the old x
 min=i;
-
-//-----------OPTIMIZATION -----------------
-if ( distance(xp,max) > (NNRANGE))
-	max = ((x+(NNRANGE))%Llim);
-if ( distance(min,xp) > (NNRANGE))
-	min = x-(NNRANGE);
-if(min<0)
-	min=min+Llim;
-//----------------------------------------
 
 recentRx=3;
 
@@ -1230,29 +1221,17 @@ if( partnum > 1)
 
    min=i;
    }
-else
-  {
-  min=x-(NNRANGE);
-  if(min<0)
- 	min=min+Llim;
-        max = ((x+(NNRANGE))%Llim);
-	
+else if (partnum == 1)
+	{
+	min = x;
+	max = x;
 	reset_prevnext_pointers();
-	
-  } //---end the if/else partnum==0
+	} //---end the if/else partnum==0
 
 
 // this step: P->a0 -= pos->a_removeN;
 // is done in the above function call.
 
-//-----------OPTIMIZATION -----------------
-if ( distance(x,max) > (NNRANGE))
-	max = ((x+(NNRANGE))%Llim);
-if ( distance(min,x) > (NNRANGE))
-	min = x-(NNRANGE);
-if(min<0)
-	min=min+Llim;
-//----------------------------------------
 
 
 TFnum--;
@@ -1330,15 +1309,6 @@ while(1)
 	i=left(i);
 	}
 min=i;
-
-//-----------OPTIMIZATION ------------------
-if ( distance(x,max) > (NNRANGE))
-	max = ((x+(NNRANGE))%Llim);
-if ( distance(min,x) > (NNRANGE))
-	min = x-(NNRANGE);
-if(min<0)
-	min=min+Llim;
-//-------------------------------------*/
 
 TFnum++;
 partnum++;
@@ -1429,15 +1399,6 @@ else
 
 //------------------------------------------------------------------------
 min=loc;
-
-//-----------OPTIMIZATION -----------------
-if ( distance(xp,max) > (NNRANGE))
-	max = ((x+(NNRANGE))%Llim);
-if ( distance(min,xp) > (NNRANGE))
-	min = x-(NNRANGE);
-if(min<0)
-	min=min+Llim;
-//----------------------------------------
 
 recentRx=6;
 
@@ -1539,14 +1500,6 @@ min=loc;
 
 //------------------------------------------------------------------------
 
-//-----------OPTIMIZATION -----------------
-if ( distance(xp,max) > (NNRANGE))
-	max = ((x+(NNRANGE))%Llim);
-if ( distance(min,xp) > (NNRANGE))
-	min = x-(NNRANGE);
-if(min<0)
-	min=min+Llim;
-//----------------------------------------
 recentRx=7;
 
 return calc_rates( min, max, n); 
@@ -1572,10 +1525,11 @@ double new_a_sTFR;			// "	"	"	" right "	"
 
 int i,x;
 bool crossed_middle=false;
-
+bool passed_min_once; 
 
 //-------------------------INITIALIZE SCAN PARAMETERS-------------------------
 x=minpos;
+passed_min_once = false;
 
 int neighbours[4];
 
@@ -1608,6 +1562,7 @@ for(i=0;i<8;i++)
 //--- 'x' is initialized to minpos above.
 
 
+passed_min_once = false;
 while(1)
 {
 
@@ -1871,10 +1826,18 @@ switch(pos[x].state )
 	}
 	//------------------------------------------------------------------
 	
-	if (x==maxpos)
+	if ( (x==maxpos && minpos != maxpos) || (x==maxpos && passed_min_once) ) /// @@@ 
+		{
 		break;
+		}
 	else
+		{
+		if(x == minpos)
+			{
+			passed_min_once=true;
+			}
 		x=right(x);
+		}
    }// ---- end the scan running through the xmin->xmax segment.
 
 //------------------------------------------------------------------------------------

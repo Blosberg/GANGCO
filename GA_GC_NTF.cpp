@@ -239,8 +239,6 @@ datin.close();
 
 
 //--------- @@@ THESE OPTIONS denote per-footprint input... JUST FOR K-MER TESTING------
-footprint=TASKID;
-
 muN = muN_input-gsl_sf_log(double(footprint)); //---- here convert per-footprint to per-lattice site muN
 E0  = E0/double(footprint);
 // ---------------------@@@ DELETE down to here -----------------------------
@@ -577,7 +575,7 @@ for(i=0;i<=NNRANGE;i++)
 	}
 if(SNG)
 	{
-	VNN_SNG_calc_smallp(VNN, NNRANGE , footprint, E0);
+	VNN_SNG_calc_smallp(VNN, NNRANGE , footprint, VLJ_rm, E0);
 	}
 else if(LNG)
 	{
@@ -701,14 +699,14 @@ cout  << "\n bind_irrev    = "    << bind_irrev << endl ;
 *log  << "Llim="         << Llim    << endl;
 *log  << "E0 = "         << E0      << ", footprint = "   << footprint      << endl ;
 *log  << "h0 = "         << h[0]    << ", h1= "   << h[1]   << ", h2= "   << h[2] << endl ;
-*log  << "muN0 = "       << muN     <<  endl ;
+*log  << "muN0 = "       << muN     << endl ;
 *log  << "uTF0 = "       << muTF0   << endl ;
 *log  << "krm_b = "      << krm_b   << ", krm_val = "  << krm_val  << endl ;
-*log  << " with kA_N = " << kA_N  << endl ;
-*log  << " with kA_N = " << kA_N  << endl ;
-*log  << " with kS_N = " << kS_N  << endl ;
-*log  << " total_obs_filling = "  << total_obs_filling << endl;
-
+*log  << " with kA_N = " << kA_N    << endl ;
+*log  << " with kA_N = " << kA_N    << endl ;
+*log  << " with kS_N = " << kS_N    << endl ;
+*log  << " total_obs_filling = "    << total_obs_filling << endl;
+*log  << " VLJ_rm =    " << VLJ_rm  << endl;
 
 
 //-----------  SETUP KYMO FILES   ----------------------------
@@ -761,6 +759,7 @@ for(i=0;i<numtrials;i++)
 	  Rtype  = 1;
 	  react(x,Rtype,*simdat);
 	  }
+
 
 	//-----start at t=0-------
 	while( (*simdat).t<tf)
