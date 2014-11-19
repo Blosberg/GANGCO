@@ -1,5 +1,7 @@
 /*----- GA_GC_NTF_progs.cpp: functions/subroutines for the grand-canonical nucleosome gillespie algorithm.-----
-// ---last updated on  Fri Oct 17 15:49:24 CEST 2014  by  ga79moz  at location  TUM , xenopus
+// ---last updated on  Tue Nov 4 18:40:24 CET 2014  by  ga79moz  at location  TUM , xenopus
+
+//  changes from  Tue Nov 4 18:40:24 CET 2014 : resolved some min/max wrap-around issues for long-range interactions. Also updated the SNG potential for Lennard-Jones
 
 //  changes from  Fri Oct 17 15:49:24 CEST 2014 : made this small_particles branch the master branch in Git. Git is now used as the change-tracker, check the history of the git repository from this point forward.
 
