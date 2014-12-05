@@ -556,7 +556,8 @@ int nbins = floor((max_tcorr)/dtau_plot);
 int NNRANGE;
 if(SNG)
 	{
-	NNRANGE = Llim-1;	// Lennard-Jones potential across the entire array.
+	//	NNRANGE = Llim-1;	// Lennard-Jones potential across the entire array.
+	NNRANGE = footprint; //----changed this to only use the repulsive part.
 	}
 else if(LNG)
 	{
