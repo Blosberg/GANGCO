@@ -604,7 +604,9 @@ else
 	}
 
 NTFRANGE=floor(float(NNRANGE)/2.);
-
+double VNTF[NTFRANGE+1];
+init_array( VNTF, NTFRANGE+1, 0.0 );
+VNTF_calc( VNTF,  NTFRANGE+1, E0);
 
  //--coarse-grain the 2-body interaction potential into a smaller system.
 //--------------------------------SETUP INITIALIZATION PARAMETERS---------------------
@@ -807,7 +809,7 @@ for(i=0;i<numtrials;i++)
 
 		if (get_voiddist_equilibrium)
 			{//----DETERMINES WHETHER WE SHOULD DETERMINE THE EQUILIBRIUM VOID DISTRIBUTION.
-			simdat->obs_count_eq_vdist += (*simdat).should_observe_equilibrium_voiddist( dt_inc, void_histogram_equilibrium  );
+//@			simdat->obs_count_eq_vdist += (*simdat).should_observe_equilibrium_voiddist( dt_inc, void_histogram_equilibrium  );
 			}
 
 		if ( output_patterns) 
@@ -1106,17 +1108,18 @@ if(calculate_entropy)
 //======================   OUTPUT two-body potential =======================
 bool output_v2=true;
 ofstream *fVNNout;
+ofstream *fVNTFout;
 
 if(output_v2)
 	{
 	clear_charray(cpath, charlength );
 	if(!krm_b)
 		{
-		sprintf(cpath, "%sv2%s_fp-%d_E0-%.3f_krm_0.txt",pathout.c_str(),NGtype.c_str(), footprint, E0);
+		sprintf(cpath, "%svNN%s_fp-%d_E0-%.3f_krm_0.txt",pathout.c_str(),NGtype.c_str(), footprint, E0);
 		}
 		else
 		{
-		sprintf(cpath, "%sv2%s_fp-%d_E0-%.3f_krm_%lf.txt",pathout.c_str(),NGtype.c_str(),footprint,E0,krm_val);
+		sprintf(cpath, "%svNN%s_fp-%d_E0-%.3f_krm_%lf.txt",pathout.c_str(),NGtype.c_str(),footprint,E0,krm_val);
 		}
 	fVNNout = new ofstream(cpath);
 
@@ -1126,6 +1129,18 @@ if(output_v2)
 		}
 	(*fVNNout).close();
 	delete fVNNout;
+
+
+	sprintf(cpath, "%svNTF%s_w-%d_E0-%.3f_krm_0.txt",pathout.c_str(), NGtype.c_str(), NTFRANGE, E0);
+	fVNTFout = new ofstream(cpath);
+	for(x=0; x<NTFRANGE; x++)
+		{
+		*fVNTFout << xcoarse[x] << " \t " << VNTF[x] << endl;
+		}
+	(*fVNTFout).close();
+
+
+	delete fVNTFout;
 	}
 //======================   OUTPUT FIXED REF AVERAGING   =======================
 // bool output_fixed_ave=false;

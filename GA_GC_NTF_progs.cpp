@@ -294,7 +294,6 @@ VNTF_calc( VNTF, NTFRANGE, E0);
 
 // @@@ NEED TO CHECK THE VNTF ENTRIES AND HOW THEY GET IMPLEMENTED....
 
-NTFRANGE=1;
 //---------------------------------------------------------------------------------
 
 path    = pathin;
@@ -2038,7 +2037,10 @@ int j;
 			}
 
 		get_filling_frac( );
-	 	increment_void_histogram(void_histogram);
+		if ( !TFs_allowed)
+			{
+			increment_void_histogram(void_histogram);
+			}
 		
 		if (calculate_entropy)
 			{
@@ -2129,8 +2131,9 @@ int j;
 
 for(j=0;j<total_obs_eq;j++)//---total_obs_eq is the number of observations we are making at equilibrium time points.
 	{
-	if(  ( tpoints_eq[j] > t)  &&  ( tpoints_eq[j] <= (t+tau))  ) // if this time-step straddles an observation point.
-		{ 
+	if(  ( tpoints_eq[j] > t)  &&  ( tpoints_eq[j] <= (t+tau)) && !TFs_allowed ) 
+		{ // if this time-step straddles an observation point, and there are no TFs present.
+
 		increment_void_histogram_equilibrium( void_histogram_equilibrium  );
 		
 		

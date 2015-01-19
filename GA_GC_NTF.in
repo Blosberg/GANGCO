@@ -6,13 +6,13 @@
 10
 
 -30.0 10
-330   4000
+360   4000
 
 0 0.0
 0 0 0
 0 0
 boltzmann_on_add 1.0
 
-GA2_av_thesis_fig
+GA2_av_thesis_fig_withoutTF
 88885888
-10
+100
