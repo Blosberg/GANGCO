@@ -92,9 +92,11 @@ int  footprint;		// footprint of the nuc, regardless of hard or soft. m=length o
 int h[3]; h[0]=h[1]=h[2]=0;
 double muN_input;	//---the original value (without coarse-graining)
 double muN;		//--- this one MIGHT get changed.
-double muTF0;
+double muTF0, muTF1;
+int m; 			//--- the size of the TF
 
-int F[2];
+int F[2]; // --- the coordinates of TF specific binding
+
 
 int numtrials;
 
@@ -222,8 +224,12 @@ datin  >> kS_N  >> kA_N >> kS_TF  >> kA_TF;
 datin  >> Llim  ;  			//---Llim in LATTICE SITES, (after CG-ing), not bp.
 datin  >> t0   >> tf >>  t_trans >> dt_obs >> dtau_plot >> max_tcorr; 
 //--Llim - system size; dt_obs is now just the time we _start_ looking.
+
 datin  >> footprint ;	//----in the HNG case, we just take 'w' to mean 'k'
-datin  >> muTF0;
+datin  >> m ;    
+
+datin  >> muTF0 >> muTF1;
+datin  >> F[0]   >> F[1];
 
 datin  >> krm_b                 >> krm_val;
 datin  >> should_plot_snapshots >> Nplots2makeshort  >> Nplots2makelong;
@@ -287,7 +293,7 @@ if( (BZalpha<0.0) || (BZalpha>1.0))
 	exit(1);
 	}
 
-bool output_patterns = false;	//---should we print out the 2-part correlation function?
+bool output_patterns = true;	//---should we print out the 2-part correlation function?
 
 //----- TAKE INPUT irho_target and use it to determine chemical potential ---------
 //-----altered startup condition begins here.--------------------------------------------------------------------------
@@ -398,7 +404,7 @@ else
 cout << "TASKID        = " << TASKID  << endl;
 cout << "original seed = " << seed    << endl;
 seed=(seed/TASKID);
-cout << "new seed = " << seed  << endl;
+cout << "new seed      = " << seed    << endl;
 
 gsl_rng_env_setup();
       
@@ -553,7 +559,7 @@ int nbins = floor((max_tcorr)/dtau_plot);
 //--------- GET TWO BODY POTENTIALS: -----------------------------------------
 
 
-int NNRANGE;
+int NNRANGE, NTFRANGE;
 if(SNG)
 	{
 	//	NNRANGE = Llim-1;	// Lennard-Jones potential across the entire array.
@@ -567,7 +573,6 @@ else if(HNG)
 	{
 	NNRANGE = footprint;
 	}
-
 double VNN[NNRANGE+1];
 double xcoarse[NNRANGE+1];
 
@@ -597,14 +602,24 @@ else
 	cout << "\n ERROR: no NGtype selected.\n";
 	exit(1);
 	}
+
+NTFRANGE=floor(float(NNRANGE)/2.);
+
+
  //--coarse-grain the 2-body interaction potential into a smaller system.
 //--------------------------------SETUP INITIALIZATION PARAMETERS---------------------
-int     sizes_n_ranges[4];
+int     sizes_n_ranges[8];
 sizes_n_ranges[0] = footprint;
 	//-------sizes_n_ranges[1] = kHNG; // kHNG *is* 'footprint'
 sizes_n_ranges[1] = RMRANGE;
 sizes_n_ranges[2] = Llim;
 sizes_n_ranges[3] = NNRANGE;
+sizes_n_ranges[4] = NTFRANGE;
+
+sizes_n_ranges[5] = m;
+sizes_n_ranges[6] = F[0];
+sizes_n_ranges[7] = F[1];
+
 //--------------------------------------
 double  k_rates[5];
 k_rates[0]=kS_N;
@@ -636,12 +651,14 @@ observations[3] = total_obs_filling;
 observations[4] = total_obs_eq;
 observations[5] = nbins;
 //--------------------------------------
-double energetics[4];
+double energetics[5];
 energetics[0] = muN;	//--- input the actual chemical potential 
 			//--- the constructor handles all aspects of coarse-graining.
 energetics[1] = muTF0;
-energetics[2] = E0;
-energetics[3] = BZalpha;//----the boltzmann alpha value that defines the ratio between addition and removal.
+energetics[2] = muTF1;
+
+energetics[3] = E0;
+energetics[4] = BZalpha;//----the boltzmann alpha value that defines the ratio between addition and removal.
 
 //--------------------------------------
 
@@ -702,8 +719,8 @@ cout  << "\n bind_irrev    = "    << bind_irrev << endl ;
 *log  << "Llim="         << Llim    << endl;
 *log  << "E0 = "         << E0      << ", footprint = "   << footprint      << endl ;
 *log  << "h0 = "         << h[0]    << ", h1= "   << h[1]   << ", h2= "   << h[2] << endl ;
-*log  << "muN0 = "       << muN     << endl ;
-*log  << "uTF0 = "       << muTF0   << endl ;
+*log  << "muN0  = "       << muN    << endl ;
+*log  << "muTF0 = "       << muTF0  << endl ;
 *log  << "krm_b = "      << krm_b   << ", krm_val = "  << krm_val  << endl ;
 *log  << " with kA_N = " << kA_N    << endl ;
 *log  << " with kA_N = " << kA_N    << endl ;

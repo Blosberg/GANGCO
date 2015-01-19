@@ -27,7 +27,7 @@ const bool choose_carefully = true;	//do we sum over the rates again every time 
 const bool get_voiddist_equilibrium = true;
 
 
-const bool fixed_ref       = false;	//--Is the +1 nucleosome hard-coded at its position?
+const bool fixed_ref       = true;	//--Is the +1 nucleosome hard-coded at its position?
 					// BELOW: ARE THERE *OTHERS* that are also fixed in place?
 
 const bool set_fixed_initial = false;   // -- if true, then we set an initial set of particles 
@@ -154,7 +154,7 @@ int F0, F1;  // F0, F1 are now the locations of the two transcription factors di
 
 double muN0;
 double *muNarray; //----the array of ALL values of the chemical potential.
-double muTF0;
+double muTF0, muTF1;
 int Llim;
 int M;
 int footprint;

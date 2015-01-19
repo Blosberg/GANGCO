@@ -67,10 +67,14 @@ int x,i,j;
    RMrange            = sizes_n_ranges[1];
    Llim               = sizes_n_ranges[2];
    NNRANGE	      = sizes_n_ranges[3];	
+   NTFRANGE	      = sizes_n_ranges[4];
+
+   m  = sizes_n_ranges[5] ;
+   F0 = sizes_n_ranges[6] ;
+   F1 = sizes_n_ranges[7] ;
+
 
    M    = 8*Llim;	// the number of possible reactions -- most of which will have 0 amplitude
-
-  m = 0;//--no TF's in this version.
 
 //------------RATES---------------------
    ks_N       =  k_rates[0];
@@ -101,9 +105,11 @@ int x,i,j;
    nbins              = observations[5];
 //------------ENERGETICS----------------
    muN0          =  energetics[0];   //---this is the genuine muN 
-   muTF0 	 =  energetics[1];
-   E0            =  energetics[2];
-   BZalpha       =  energetics[3];   //--- the boltzmann alpha value 
+   muTF0 	 =  energetics[1];   //---non-specific (background) TF adsorption energy
+   muTF1 	 =  energetics[2];   //---specific binding TF energy
+
+   E0            =  energetics[3];
+   BZalpha       =  energetics[4];   //--- the boltzmann alpha value 
 				     //--- that defines the ratio 
 				     //--- between addition and removal.
 
@@ -196,8 +202,6 @@ for(i=0;i<nbins; i++)
 	testing_olap_y[i]=0.0;
 	}
 
-F0    =  1;
-F1    =  2;	//just made up numbers for now.
 
 //--------------  THESE ARE ALL FILLING DYNAMICS PARAMETERS ---------------------
 
@@ -279,15 +283,16 @@ for(i=0;i<Llim;i++)
 		VNN[i] = 0.0;
 		}
 	}
+delete [] VNN_full;
 
 VNTF = new double[Llim]; //--most of these will just be zero, and never get used.
 for(i=0;i<Llim;i++)
 	{
 	VNTF[i]=0.0;
 	}
+VNTF_calc( VNTF, NTFRANGE, E0);
 
-delete [] VNN_full;
-
+// @@@ NEED TO CHECK THE VNTF ENTRIES AND HOW THEY GET IMPLEMENTED....
 
 NTFRANGE=1;
 //---------------------------------------------------------------------------------
@@ -1208,10 +1213,9 @@ if( partnum > 1)
 
 	i = right(i);	// increment position under consideration.
 	}
-
-   i= left(x);
    max=i;
 
+   i= left(x);
    while(1)
 	{
 	pos[i].part_right=pR;	
@@ -2740,6 +2744,7 @@ if(TFs_allowed)
 	(*log).close();
 	exit(1);
 	}	
+
 //-----------------------------------------------------------------------
 if(Nucnum < 1 )
 	{
