@@ -27,7 +27,7 @@
 #include <gsl/gsl_sf_log.h>
 #include <queue>
 #include <math.h>
-#include "GA_GC_NTF.h"
+#include "GA_GC_N.h"
 //#include <bren_lib.h>
 
 #include <gsl/gsl_rng.h>
@@ -57,9 +57,10 @@ string bren_itoa( const int x );
 
 //*******************************************************************
 //-------------------------- THE BIG CONSTRUCTOR --------------------
-GAdata::GAdata(const double *energetics, const int* observations, const double* k_rates,const double* times, const int* sizes_n_ranges, const int *h, const int * F, bool krm_B, string pathin, ofstream * log_in , ofstream * timestamps_in, const bool * flags)  //constructor
+GAdata::GAdata(const double *energetics, const int* observations, const double* k_rates,const double* times, const int* sizes_n_ranges, const int *h, bool krm_B, string pathin, ofstream * log_in , ofstream * timestamps_in, const bool * flags)  //constructor
 {  // constructor
 int x,i,j;
+
 //-----------SIZES AND RANGES-----------
    footprint      = sizes_n_ranges[0];
  	//---   kHNG        *is now just 'a'*      = sizes_n_ranges[1];
@@ -67,27 +68,20 @@ int x,i,j;
    RMrange            = sizes_n_ranges[1];
    Llim               = sizes_n_ranges[2];
    NNRANGE	      = sizes_n_ranges[3];	
-   NTFRANGE	      = sizes_n_ranges[4];
+ 
+   NTFRANGE=0;
 
-   m  = sizes_n_ranges[5] ;
-   F0 = sizes_n_ranges[6] ;
-   F1 = sizes_n_ranges[7] ;
-
-
-   M    = 8*Llim;	// the number of possible reactions -- most of which will have 0 amplitude
+   M    =  reactions_per_site*Llim;	// the number of possible reactions -- most of which will have 0 amplitude
 
 //------------RATES---------------------
    ks_N       =  k_rates[0];
    ka_N       =  k_rates[1];
-   ks_TF      =  k_rates[2];
-   ka_TF      =  k_rates[3];
-   krm_val    =  k_rates[4];
+   krm_val    =  k_rates[2];
 
 //-------------TIMES--------------------
    tf       = times[0];
    dt_obs   = times[1];
-   dtau_obs = times[2];
-   t_trans  = times[3];
+   t_trans  = times[2];
 //------------FlAGS---------------------
    HNG = flags[0];
    SNG = flags[1];
@@ -105,11 +99,9 @@ int x,i,j;
    nbins              = observations[5];
 //------------ENERGETICS----------------
    muN0          =  energetics[0];   //---this is the genuine muN 
-   muTF0 	 =  energetics[1];   //---non-specific (background) TF adsorption energy
-   muTF1 	 =  energetics[2];   //---specific binding TF energy
 
-   E0            =  energetics[3];
-   BZalpha       =  energetics[4];   //--- the boltzmann alpha value 
+   E0            =  energetics[1];
+   BZalpha       =  energetics[2];   //--- the boltzmann alpha value 
 				     //--- that defines the ratio 
 				     //--- between addition and removal.
 
@@ -138,7 +130,6 @@ obs_count_eq_vdist	=0;	// ---- the equilibrium void distribution
 
 plotnum_kymo=0;
 Nucnum  = 0;
-TFnum   = 0;
 partnum = 0;
 a0=0.0;
 t=0.0;
@@ -148,12 +139,11 @@ N_remod=0;  //----number of possible available remodelling sites.
 num_times_2pc_eq_incremented=0;
 two_part_corr_eq 	= new double [Llim];
 onepoint_histocc_N_eq	= new int [Llim];
-onepoint_histocc_TF_eq	= new int [Llim];
+
 for(i=0;i<Llim;i++)
 	{
 	two_part_corr_eq[i]       = 0.0;
 	onepoint_histocc_N_eq[i]  = 0;
-	onepoint_histocc_TF_eq[i] = 0;
 	}
 
 
@@ -161,7 +151,6 @@ two_part_corr_ti             = new double * [total_obs_filling];
 num_times_2pc_ti_incremented = new int    [total_obs_filling];
 
 onepoint_histocc_N_ti	= new int* [total_obs_filling];
-onepoint_histocc_TF_ti  = new int* [total_obs_filling];
 
 for(i=0;i<total_obs_filling;i++)
 	{
@@ -169,38 +158,17 @@ for(i=0;i<total_obs_filling;i++)
 	two_part_corr_ti[i]              = new double [Llim];
 
 	onepoint_histocc_N_ti[i]         = new int[Llim];
-	onepoint_histocc_TF_ti[i]        = new int[Llim];
 
 	for(j=0;j<Llim;j++)
 		{
 		two_part_corr_ti[i][j]       = 0.0;
 		onepoint_histocc_N_ti[i][j]  = 0;
-		onepoint_histocc_TF_ti[i][j] = 0;
 		}
 	}
 
 //----NB: the twpoints_filling/eq arrays are assigned by pointer value in the main function!
 
 already_warned = false;
-
-//--------------- THESE ARE ALL TF-TF CORRELATION PARAMETERS ------------------------
-bindeventnum_F0 = 0;
-bindeventnum_F1 = 0;
-
-event_array_F0 = NULL;
-event_array_F1 = NULL;
-built_array_of_binding_events = false; //--have we or have we not constructed such an array from the stack?
-avg_F0_occupation = 0.0;
-avg_F1_occupation = 0.0;
-
-testing_avg_F0_occupation=0.0;
-testing_avg_F1_occupation=0.0;
-
-testing_olap_y = new double [nbins];
-for(i=0;i<nbins; i++)
-	{
-	testing_olap_y[i]=0.0;
-	}
 
 
 //--------------  THESE ARE ALL FILLING DYNAMICS PARAMETERS ---------------------
@@ -214,9 +182,6 @@ for(i=0; i<total_obs_filling; i++)
 obs_count_filling=0;	//--- the index of the time-snapshot that is 
 			//--- currently being considered for filling evaluation.
 
-   h0 =h[0]; 
-   h1 =h[1];  
-   h2 =h[2];
 
 //----------------------------------------
 
@@ -226,7 +191,8 @@ obs_count_filling=0;	//--- the index of the time-snapshot that is
 //------------------- NOW GET THE POTENTIALS ----------------------------------
 
 double * VNN_full = new double[NNRANGE+1];
-xcoarse  = new double[Llim]; for(i=0;i<Llim;i++){xcoarse[i]=0.0;}
+xcoarse           = new double[Llim]; for(i=0;i<Llim;i++){xcoarse[i]=0.0;}
+VNTF=NULL;
 
 if(SNG)
 	{
@@ -285,14 +251,6 @@ for(i=0;i<Llim;i++)
 	}
 delete [] VNN_full;
 
-VNTF = new double[Llim]; //--most of these will just be zero, and never get used.
-for(i=0;i<Llim;i++)
-	{
-	VNTF[i]=0.0;
-	}
-VNTF_calc( VNTF, NTFRANGE, E0);
-
-// @@@ NEED TO CHECK THE VNTF ENTRIES AND HOW THEY GET IMPLEMENTED....
 
 //---------------------------------------------------------------------------------
 
@@ -304,21 +262,17 @@ timestamps=timestamps_in;
 
 
 //------------------ NOW SET YOUR POINTERS PROPERLY ----------------------------
-Rx = new double[8*Llim];
+
+Rx = new double[reactions_per_site*Llim]; //---changed this to 4
 pos = new site[Llim];
 muNarray = new double[Llim]; ///------for now we just set this to muN0
 
 for(x=0;x<Llim;x++)
 	{
-	pos[x].a_removeN = &Rx[x*8 + 0 ];
-	pos[x].a_addN    = &Rx[x*8 + 1 ];
-	pos[x].a_sNL     = &Rx[x*8 + 2 ];
-	pos[x].a_sNR     = &Rx[x*8 + 3 ];
-
-	pos[x].a_removeTF = &Rx[x*8 + 4 ];
-	pos[x].a_addTF    = &Rx[x*8 + 5 ];
-	pos[x].a_sTFL     = &Rx[x*8 + 6 ];
-	pos[x].a_sTFR     = &Rx[x*8 + 7 ];
+	pos[x].a_removeN = &Rx[x*reactions_per_site + 0 ];
+	pos[x].a_addN    = &Rx[x*reactions_per_site + 1 ];
+	pos[x].a_sNL     = &Rx[x*reactions_per_site + 2 ];
+	pos[x].a_sNR     = &Rx[x*reactions_per_site + 3 ];
 
 	pos[x].permanent  = false;	//all sites should be set to allow for removal of particles once there.
 
@@ -339,35 +293,13 @@ for(x=0;x<Llim;x++)
 	*pos[x].a_sNL = 0.0;
 	*pos[x].a_sNR = 0.0;
 
-	*pos[x].a_removeTF = 0.0;
-	*pos[x].a_sTFL = 0.0;
-	*pos[x].a_sTFR = 0.0;
-
 	//----------nucleosome addition rate:
 	*pos[x].a_addN  = ka_N*k_E( -muN(x) ); 	//--- ADDING NUCLEOSOMES (always weighted from initially empty)  -------------
 
-	//-----------TF addition rate-----------------
-	if(TFs_allowed)
-		{
-		*pos[x].a_addN  = ka_TF*k_E( -muTF(x) ); //----  ADDING TRANSCRIPTION FACTORS  ----------------
-							 //----  (always weighted from initially empty) -------
-
-		}
-	else
-		{
-		*pos[x].a_addTF = 0.0;	//--- ADDING TRANSCRIPTION FACTORS -------	
-		}
-
-
 	a0+=*pos[x].a_addN;
-	a0+=*pos[x].a_addTF;
 
 	//-----------------AND SET AVERAGE OCCUPANCY TO ZERO INITIALLY------------
-
-	pos[x].t_occ_TF = 0.0;
 	pos[x].t_occ_N  = 0.0;
-
-	pos[x].t_bind_TF = -1.0;
 	pos[x].t_bind_N  = -1.0;
 
 	}//---end for loop initializing through the array of positions.
@@ -375,7 +307,6 @@ for(x=0;x<Llim;x++)
 
 //---------ALWAYS EXPORT AS EMPTY FROM HERE, IF (set_fixed_initial) is true, then we'll add the fixed ones in main.
 
-//-------------------------------------------------------------------------
 }
 //*******************************************************************
 int GAdata::set_fixed_initial_particles( const string path , gsl_rng * r )
@@ -475,24 +406,13 @@ GAdata::~GAdata()  //destructor
 int x=0,i=0,j=0;
 
 delete [] VNN;
-delete [] VNTF;
 delete [] Rx;
 
 	
-for(x=0;x<Llim; x++)
-	{
-	while (pos[x].event_list.size() >=1 )
-		{
-		pos[x].event_list.pop();
-		}
-	}
-delete [] pos;
-
 delete [] muNarray;
 
 
 //	delete [] filling_frac;
-delete [] testing_olap_y;	
 delete [] xcoarse ;
 delete [] filling_frac;
 
@@ -500,28 +420,19 @@ delete [] filling_frac;
 //-------------------------------
 delete [] two_part_corr_eq;
 delete [] onepoint_histocc_N_eq;
-delete [] onepoint_histocc_TF_eq;
 
 for(i=0;i<total_obs_filling;i++)
 	{
 	delete [] two_part_corr_ti[i];
 	delete [] onepoint_histocc_N_ti[i];
-	delete [] onepoint_histocc_TF_ti[i]; 
 
 	}
 delete [] two_part_corr_ti;
 delete [] num_times_2pc_ti_incremented;
 
 delete [] onepoint_histocc_N_ti;
-delete [] onepoint_histocc_TF_ti;
 
 //-------------------------------
-if(built_array_of_binding_events)
-	{
-	delete [] event_array_F0;
-	delete [] event_array_F1;
-	}
-
 
 }
 
@@ -559,14 +470,6 @@ if( choose_carefully)
 			// cout << "\n WARNING, reaction rate sums don't agree\n recalibrating at counter = " << counter << endl;
 			already_warned = true;
 			}
-/*
-		else
-			{
-			*log << "\n WARNING, already warned, and the reaction rate is skewed AGAIN! exiting. \n";
-			cout << "\n WARNING, already warned, and the reaction rate is skewed AGAIN! exiting. \n";
-			exit(1);
-			}
-*/
 	
 		if(fabs(local_errtest) > 1E-7)
 			{
@@ -579,7 +482,6 @@ if( choose_carefully)
 	}
 an=0.0;
 //-------------------------------DOWN TO HERE ----
-
 
 for(i=0; i< M ;i++)
 	{
@@ -748,24 +650,13 @@ x  = Rpos;
 pR = pos[x].part_right;
 
 //--------don't remodel away the +1 Nucl. if fixed_ref is true-----------
-if (x==h0+h1 && fixed_ref)
-	{
-	slide_Nuc_left( pR);
-	}
-else if(pR==h0+h1 && fixed_ref )
-	{
-	slide_Nuc_right( x); 
-	}
-else
-	{
-	//---------down to here---------
+//---------down to here---------
 
-	r1=gsl_rng_uniform(r); 
-	if(r1 <0.5) 
-		slide_Nuc_right( x); 
-	else 
-		slide_Nuc_left( pR);
-	}
+r1=gsl_rng_uniform(r); 
+if(r1 <0.5) 
+	slide_Nuc_right( x); 
+else 
+	slide_Nuc_left( pR);
 
 
 if( N_remod < 0 )
@@ -832,7 +723,7 @@ else
 
 //----------------------------------------------
 
-if( ( Nucnum + TFnum) > 1 )
+if( Nucnum > 1 )
     {
     i= right(x);
     while(1)
@@ -846,8 +737,8 @@ if( ( Nucnum + TFnum) > 1 )
 	}
     max=i;
 
-   i=left(x);
-   while(1)
+    i=left(x);
+    while(1)
 	{
 	pos[i].part_right=pR;	// make this position's next left particle the former left particle of the current one.
 	if( (pos[i].state == 1) || (pos[i].state == 2) )
@@ -866,7 +757,7 @@ if( ( Nucnum + TFnum) > 1 )
 		min=min+Llim;
 	//----------------------------------------
     }
-else if( ( Nucnum + TFnum) == 1 )
+else if( Nucnum == 1 )
 	{
 	min = x;
 	max = x;
@@ -964,16 +855,6 @@ while(1)
 	}
 //------------------------------------------------------------------------
 min=i;
-
-/*-----------OPTIMIZATION (causes wrap-around problems when NNRANGE is large )------------------
-if ( distance(x,max) > (NNRANGE))
-	max = ((x+(NNRANGE))%Llim);
-if ( distance(min,x) > (NNRANGE))
-	min = x-(NNRANGE);
-if(min<0)
-	min=min+Llim;
-//---------------------------------------------------------------------------------------------*/
-
 
 Nucnum++;
 partnum++;
@@ -1139,376 +1020,6 @@ recentRx=3;
 
 return calc_rates( min, max,n); 
 }
-
-//-------  NOW FOR THE TF'S  --------
-//*****************************************************************
-int GAdata::remove_TF( int x)
-{
-int pR = pos[x].part_right;
-int pL = pos[x].part_left;
-int i, min, max;
-int loc;
-
-if(bind_irrev || pos[x].permanent)
-	{cout << "\n ERROR, binding is irreversible, and yet remove_TF is being called. exiting.\n";
-	*log << "\n ERROR, binding is irreversible, and yet remove_TF is being called. exiting.\n";
-	(*log).close();
-	exit(1);
-	}
-
-
-bindevent Q;  Q.t = t;  Q.species = 2;  Q.onoroff = -1;
-
-if( pos[x].state != 2)
-	{
-	flag=107;
-	process_error( x );
-	}
-//------------------REMODELLING SITE INCREMENT-------------------------
-int n=0;
-if( remod_cand(pL,pR) && pos[pL].state==1 && pos[pR].state==1   )
-	{
-	n++;	
-	} //-- OPENING UP INTERACTION BETWEEN LEFT AND RIGHT PARTICLES.
-
-
-//---NOW ASSIGN STATES FOR THE SPACE WHERE THE TF WAS-----
-loc=x;
-//--------------CHANGE STATE AND INCREMENT OCCUPATION TIME---------
-
-for(i=0;i< m;i++)
-	{
-	if( pos[loc].state != i+2)
-		{
-		flag=108;
-		process_error( x );
-		}
-	pos[loc].state=0;
-	loc= right(loc);
-	}
-
-if( (pos[x].t_bind_TF <0) || (pos[x].t_bind_TF > t) )
-	{ 
-	flag = 4005; 
-	process_error(x);
-	}
-else
-	{
-	pos[x].t_occ_TF += (t - pos[x].t_bind_TF);
-	pos[x].t_bind_TF = -1;
-	}
-
-//----------------------------------------------------------
-
-if( partnum > 1)
-   {
-   i= right(x);
-
-   while(1)
-	{
-	 pos[i].part_left=pL;	
-	if( ( pos[i].state == 1) || ( pos[i].state == 2) )
-		break;
-
-	i = right(i);	// increment position under consideration.
-	}
-   max=i;
-
-   i= left(x);
-   while(1)
-	{
-	pos[i].part_right=pR;	
-
-	if( (pos[i].state == 1) || (pos[i].state == 2) )
-		break;	
-	i =left(i);
-	}
-
-   min=i;
-   }
-else if (partnum == 1)
-	{
-	min = x;
-	max = x;
-	reset_prevnext_pointers();
-	} //---end the if/else partnum==0
-
-
-// this step: P->a0 -= pos->a_removeN;
-// is done in the above function call.
-
-
-
-TFnum--;
-partnum--;
-recentRx=4;
-
-return calc_rates( min, max,n); 
-
-}
-//*****************************************************************
-int GAdata::add_TF( int x)
-{ 
-int loc;
-int i, min, max;
-int pL = pos[x].part_left;
-int pR = pos[x].part_right;
-
-bindevent Q;  Q.t = t;  Q.species = 2;  Q.onoroff = 1;
-
-
-//------------------REMODELLING SITE INCREMENT-------------------------
-int n=0;
-if( remod_cand(pL,pR) && pos[pL].state==1 && pos[pR].state==1   )
-	{
-	n--;
-	} //-- BLOCKING LEFT AND RIGHT PARTICLES INTERACTION
-
-
-
-//------  NOW ASSIGN STATES FOR THE NEW TF --------
-loc=x;
-
-for(i=0;i<m;i++)
-	{
-	if( pos[loc].state != 0)
-		{
-		flag=109;
-		process_error( x );
-		}
-	pos[loc].state=i+2;
-	loc=right(loc);
-	}
-
-
-if( pos[x].t_bind_TF > 0  )
-	{ 
-	flag = 4006; 
-	process_error(x);
-	}
-else
-	{
-	pos[x].t_bind_TF = t;
-	}
-
-//------------------------------------------------------
-
-i=right(x);
-while(1)
-	{
-	pos[i].part_left=x;	
-	if( (pos[i].state == 1) || (pos[i].state == 2) )
-		break;
-
-	i=right(i);	// increment position under consideration.
-	}
-max=i;
-
-i=left(x);
-while(1)
-	{
-	pos[i].part_right=x;	
-
-	if( (pos[i].state == 1) || (pos[i].state == 2) )
-		break;	
-	i=left(i);
-	}
-min=i;
-
-TFnum++;
-partnum++;
-recentRx=5;
-
-return calc_rates( min, max,n); 
-}
-//*****************************************************************
-int GAdata::slide_TF_left( int x)
-{
-int xp=left(x);	//---xp denotes where it's going to:
-int pR = pos[x].part_right;
-int i, loc, min, max;
-
-int n=0;//---must stay zero for this reaction.
-
-bindevent Q;  Q.t = t;  Q.species = 2;  Q.onoroff = -1;
-
-
-//----------UPDATE STATE AND START OCCUPATION TIMER-------
-
-if( ( pos[xp].state != 0) || (pos[x].state != 2))	// error flag
-	{
-	flag=110;
-	process_error( x );
-	}
-pos[xp].state    =2;
-pos[x].part_left =xp;
-pos[xp].part_right =pR;
-
-if( (pos[xp].t_bind_TF > 0 ) || ( pos[x].t_bind_TF < 0  ) || (pos[x].t_bind_TF > t)  )
-	{ 
-	flag = 4007; 
-	process_error(x);
-	}
-else
-	{
-	pos[xp].t_bind_TF = t;
-	
-	pos[x].t_occ_TF  += (t - pos[x].t_bind_TF );
-	pos[x].t_bind_TF = -1;
-	}
-
-//------------------------------------------------------------------------
-
-loc=(x);
-for(i=1;i<m;i++)
-	{
-	if( pos[loc].state != i+1   )
-		{
-		flag=111;
-		process_error( x );
-		}
-
-	pos[loc].part_left=xp;	
-	pos[loc].state=i+2;
-	loc=right(loc);
-	}
-
-pos[loc].state=0;
-pos[loc].part_left=xp;	
-
-//------------------------------------------------------------------------
-loc=right(loc);
-while(1)
-	{
-	pos[loc].part_left=xp;	
-	if( (pos[loc].state == 1) || (pos[loc].state == 2) )
-		break;
-	loc=right(loc);	// increment position under consideration.
-	}
-max=loc;
-
-loc=left(xp);
-while(1)
-	{
-	pos[loc].part_right=xp;
-
-	if( (pos[loc].state == 1) || (pos[loc].state == 2) )
-		break;	
-	loc=left(loc);
-	}
-
-if(partnum ==1)
-	pos[xp].part_right=xp; 
-else	
-	pos[xp].part_right=pR; 	//whatever was to the right of the old x
-
-//------------------------------------------------------------------------
-min=loc;
-
-recentRx=6;
-
-return calc_rates( min, max, n); 
-}
-//*****************************************************************
-int GAdata::slide_TF_right(  int x)
-{
-int xp=right(x);	//---xp denotes where it's going to:
-int pL = pos[x].part_left;
-int pR = pos[x].part_right;
-
-int i, min, max;
-int n=0;//---must stay zero for this reaction.
-
-bindevent Q;  Q.t = t;  Q.species = 2;  Q.onoroff = -1;
-
-if( (pos[xp].state != 3) || (pos[x].state != 2))	// error flag
-	{
-	flag=112;
-	process_error( x );
-	}
-
-//----------UPDATE STATE AND START OCCUPATION TIMER-------
-pos[x].state=0;
-	
-if( (pos[xp].t_bind_TF > 0 ) || ( pos[x].t_bind_TF < 0  ) || (pos[x].t_bind_TF > t)  )
-	{ 
-	flag = 4008; 
-	process_error(x);
-	}
-else
-	{
-	pos[xp].t_bind_TF = t;
-	
-	pos[x].t_occ_TF  += (t - pos[x].t_bind_TF );
-	pos[x].t_bind_TF = -1;
-	}
-
-//------------------------------------------------------------------------
-
-pos[xp].part_left=pL;
-//  pos[x].part_right=xp; --WE DO THIS IN THE LOOPS
-
-int loc=xp;
-
-for(i=1;i<m;i++)
-	{
-	if(pos[loc].state != i+2)
-		{
-		flag=113;
-		process_error( x );
-		}
-	pos[loc].state=i+1;
-
-
-	loc=right(loc);
-	}
-
-if(pos[loc].state != 0)
-	{
-	flag=113;
-	process_error( x );
-	}
-else
-	{
-	pos[loc].state=m+1;
-	}
-
-loc=right(xp); 
-//------------------------------------------------------------------------
-while(1)
-	{
-	pos[loc].part_left=xp;	
-	if( (pos[loc].state == 1) || (pos[loc].state == 2) )
-	   {
-	   break;
-	   }
-	else
-	   loc=right(loc);	// increment position under consideration.
-	}
-max=loc;
-//---this doesn't change : P->pos[xp].part_right=pR; 	//the next right particle is no longer directly adjacent.
-if(partnum ==1)
-	pos[xp].part_left = xp; 
-else	
-	pos[xp].part_left = pL; 	//whatever was to the right of the old x
-
-loc=x;
-while(1)
-	{
-	pos[loc].part_right=xp;
-
-	if( (pos[loc].state == 1) || (pos[loc].state == 2) )
-		break;	
-	loc=left(loc);
-	}
-min=loc;
-
-//------------------------------------------------------------------------
-
-recentRx=7;
-
-return calc_rates( min, max, n); 
-}
 //*****************************************************************
 int GAdata::calc_rates(  const int minpos, const int maxpos, const int n) //---n is the number of new possible remodelling site pairs
 {
@@ -1523,11 +1034,6 @@ double new_a_removeN;
 double new_a_sNL;		//delta-Energy of sliding left one position
 double new_a_sNR;		// "	"	"	" right "	"
 
-double new_a_addTF;
-double new_a_removeTF;
-double new_a_sTFL;			//delta-Energy of sliding left one position
-double new_a_sTFR;			// "	"	"	" right "	"
-
 int i,x;
 bool crossed_middle=false;
 bool passed_min_once; 
@@ -1540,32 +1046,25 @@ int neighbours[4];
 
 double Boltzdiffuse; //----the boltzmann factor used only as a temp variable for diffusion.
 
-// neighbours[0]= type left
 // neighbours[1]= location left
-// neighbours[2]= type right
 // neighbours[3]= location right
 
-
-//---- DON'T CHANGE THE ORDER OF THESE NEXT ASSIGNMENTS: I KNOW IT LOOKS OUT OF ORDER, ---------------------
-//---- BUT IT'S RIGHT, AND IT HAS TO STAY THIS WAY. LEAVE IT HOW IT IS. THIS IS IMPORTANT.
 neighbours[1] = pos[x].part_left;  //locL -location of particle to the left
 neighbours[0] = pos[neighbours[1]].state; //typeL -type of particle to the left
 neighbours[3] = pos[x].part_right; //--locR
-neighbours[2] = pos[neighbours[3]].state; // typeR
+neighbours[2] = pos[neighbours[3]].state; // typeR should always be 1... ok, as long as deADD energy func always gets this value
 //----  DON'T CHANGE THE ABOVE ORDER   ------------------------------------------------
 
-if ( (partnum > 0) && ( (neighbours[0] != 1  &&  neighbours[0] != 2 ) || ( neighbours[2] != 1 && neighbours[2]  != 2 )))
+if ( (partnum > 0) && ( neighbours[0] != 1   ||  neighbours[2] != 1 ))
 	{
 	flag=114;
 	process_error( x );
 	}
 //--------------------------START SCAN----------------------------------------
-double HNGrates[8];
-for(i=0;i<8;i++)
+double HNGrates[reactions_per_site];
+for(i=0;i<reactions_per_site;i++)
 	HNGrates[i] =0.0;
-
 //--- 'x' is initialized to minpos above.
-
 
 passed_min_once = false;
 while(1)
@@ -1581,7 +1080,6 @@ switch(pos[x].state )
 		{
 		get_HNG_rates(0,HNGrates, neighbours, x);
 		new_a_removeN  = HNGrates[0]; new_a_addN  = HNGrates[1]; new_a_sNL  = HNGrates[2]; new_a_sNR  = HNGrates[3];
-		new_a_removeTF = HNGrates[4]; new_a_addTF = HNGrates[5]; new_a_sTFL = HNGrates[6]; new_a_sTFR = HNGrates[7];
 		}
 	  else
 		{ //--- SNG or LNG------------------------------------------- :
@@ -1589,7 +1087,8 @@ switch(pos[x].state )
 
 		if( boltzmann_on_add || boltzmann_on_uphill )
 			{
-			new_a_addN  = ka_N*k_E( -muN(x)  + interaction_dEadd(1, x, neighbours ) );
+			new_a_addN  = ka_N*k_E( -muN(x)  + interaction_dEadd(1, x, neighbours ) );//--neighbours will always 
+												  // get "1" for nucleosomes.
 			}
 		else if( boltzmann_on_removal )
 			{
@@ -1600,29 +1099,6 @@ switch(pos[x].state )
 			new_a_addN  = ka_N*k_E( -muN(x) + BZalpha * interaction_dEadd(1, x, neighbours )  ); 
 			//---here the addition reaction takes the full mu, but only takes account of BZalpha*the interaction energy.
 			}
-
-		if( (distance(x,pos[x].part_right) < m) || (!TFs_allowed) )
-			{
-			new_a_addTF =0.0;
-			}
-		else
-			{
-
-			if( boltzmann_on_add || boltzmann_on_uphill )
-				{
-				new_a_addTF = ka_TF*k_E( -muTF(x) + interaction_dEadd(2, x, neighbours ) );
-				}
-			else if( boltzmann_on_removal )
-				{
-				new_a_addTF = ka_TF*k_E( -muTF(x) );
-				}
-			else if( boltzmann_on_addrem_intermed )
-				{
-				new_a_addTF = ka_TF*k_E( -muTF(x) + BZalpha * interaction_dEadd(2, x, neighbours ) );
-				//---here the addition reaction takes the full mu, but only takes account of BZalpha*the interaction energy.
-				}
-
-			} 
 			//--k_E takes as an argument the energy change that will result.
 			//--interaction already accounts for the offset of the outside interactions
 
@@ -1630,12 +1106,6 @@ switch(pos[x].state )
 		new_a_sNL  = 0.0;
 		new_a_sNR  = 0.0;
 
-		if(TFs_allowed)
-			{
-			new_a_removeTF = 0.0;
-			new_a_sTFL = 0.0;	
-			new_a_sTFR = 0.0;
-			}
 		}
 
 	break;
@@ -1643,13 +1113,12 @@ switch(pos[x].state )
 	case 1: //---Nucleosome here -----------------------------------------------------------
 
 		neighbours[3] = pos[x].part_right; //--location of the next particle to the right
-		neighbours[2] = pos[neighbours[3]].state; // type of particle to the right
-		
+		// neighbours[2] just stays 1 as always 
+
 	   if(HNG)
 		{		
 		get_HNG_rates(1,HNGrates, neighbours, x);
 		new_a_removeN  = HNGrates[0]; new_a_addN  = HNGrates[1]; new_a_sNL  = HNGrates[2]; new_a_sNR  = HNGrates[3];
-		new_a_removeTF = HNGrates[4]; new_a_addTF = HNGrates[5]; new_a_sTFL = HNGrates[6]; new_a_sTFR = HNGrates[7];
 		}
 	   else
 		{ //--- SNG or LNG----------:	
@@ -1697,13 +1166,6 @@ switch(pos[x].state )
 
 		new_a_addN  = 0.0;
 		
-		if(TFs_allowed)
-			{
-			new_a_sTFL = 0.0;
-			new_a_sTFR = 0.0; // A TF can't slide either way from here, if this is a nucl
-			new_a_addTF = 0.0;
-			new_a_removeTF = 0.0;
-			}
 		}
 
 	   if(bind_irrev || pos[x].permanent) //--- do this after previous calculation and overwrite the  
@@ -1713,92 +1175,15 @@ switch(pos[x].state )
 		}
 
 	   neighbours[1] = x;  // locL
-	   neighbours[0] = 1; // typeL	//----(from here on, shift the next neighbour to being THIS one)
-
-	break;
-
-	case 2: //---TF left-edge here -----------------------------------------------
-
-	   if( ! TFs_allowed )
-		{
-		flag=16379;
-		process_error( x );
-		}
-
-		neighbours[3] = pos[x].part_right; //--locR
-		neighbours[2] = pos[neighbours[3]].state; // typeR		
-
-	   if(HNG)
-		{
-		get_HNG_rates(2,HNGrates, neighbours, x);
-		new_a_removeN  = HNGrates[0]; new_a_addN  = HNGrates[1]; new_a_sNL  = HNGrates[2]; new_a_sNR  = HNGrates[3];
-		new_a_removeTF = HNGrates[4]; new_a_addTF = HNGrates[5]; new_a_sTFL = HNGrates[6]; new_a_sTFR = HNGrates[7];
-		}
- 	   else
-		{ //--- SNG || LNG ----:	
-
-		if (boltzmann_on_add)
-			{
-			new_a_removeTF  = ka_TF*1.0;
-			}
-
-		else if ( boltzmann_on_removal || boltzmann_on_uphill )
-			{
-			new_a_removeTF  = ka_TF*k_E( -interaction_dEadd(2, x, neighbours) );
-			}
-
-		else if ( boltzmann_on_addrem_intermed )
-			{
-			new_a_removeTF  = ka_TF*k_E( (1.0-BZalpha)*(-interaction_dEadd(2, x, neighbours)) );
-			}
-
-		else
-			{
-			flag=41267; cout <<"\n ERROR 2: not sure when to apply boltzmann factor.\n";
-			process_error( x );
-			}
-
-		if(pos[left(x)].state ==0 && ks_TF > 0.0 )
-			new_a_sTFL = ks_TF*gsl_sf_exp( -1.0 * max ( dEsL(2, x, neighbours ), 0 ) );
-		else
-			new_a_sTFL = 0.0;
-
-		if( distance(x ,neighbours[3] )  <= m  || ks_TF <= 0.0 )
-			new_a_sTFR = 0.0;
-		else
-			new_a_sTFR = ks_TF*gsl_sf_exp( -1.0 * max ( dEsR(2, x, neighbours ), 0) );
-
-		new_a_addN    = 0.0;
-		new_a_removeN = 0.0;
-		new_a_sNL     = 0.0;
-		new_a_sNR     = 0.0; //--A nucl can't slide either way from here if this is a TF
-		new_a_addTF   = 0.0;
-
-		}
-
-	if(bind_irrev || pos[x].permanent) //---do this after, overwriting previous rate if the binding is irreversible.
-		{ 
-		new_a_removeTF =  0.0;
-		}
-
-	neighbours[1] = x;  // locL
-	neighbours[0] = 2;  // typeL	//----(from here on)
+	   // ---neighbours[0] stays at 1; // typeL	//----(from here on, shift the next neighbour to being THIS one)
 
 	break;
 
 
 	default: //----here is somewhere inside a TF -all reactions are zero here.
-		new_a_addN  = 0.0;
-		new_a_addTF = 0.0;
-		new_a_removeN  = 0.0;
-		new_a_removeTF = 0.0;
 
-		new_a_sNL  = 0.0;
-		new_a_sNR  = 0.0;
-		new_a_sTFL = 0.0;	
-		new_a_sTFR = 0.0;	
-
-
+		cout << "\n ERROR: encountering a state neither 1 nor 0. Exiting." << endl;
+		exit(1);
 	break;
 
 	}  //----end the switch-case structure to determine what the state is 
@@ -1817,19 +1202,6 @@ switch(pos[x].state )
 	*pos[x].a_sNR      = new_a_sNR;
 
 	//----NOW DO IT AGAIN FOR THE TF REACTIONS, BUT ONLY TFs ARE PRESENT to save efficiency
-	if(TFs_allowed)
-	{
-	 da0 += (new_a_addTF -     *pos[x].a_addTF) ;
-	 da0 += (new_a_removeTF -  *pos[x].a_removeTF) ;
-	 da0 += (new_a_sTFL -      *pos[x].a_sTFL) ;
-	 da0 += (new_a_sTFR -      *pos[x].a_sTFR) ;
-
-	*pos[x].a_addTF    = new_a_addTF;
-	*pos[x].a_removeTF = new_a_removeTF;
-	*pos[x].a_sTFL     = new_a_sTFL;
-	*pos[x].a_sTFR     = new_a_sTFR;
-	}
-	//------------------------------------------------------------------
 	
 	if ( (x==maxpos && minpos != maxpos) || (x==maxpos && passed_min_once) ) /// @@@ 
 		{
@@ -1867,11 +1239,6 @@ double new_a_addN;		//delta-Energy of removal from system
 double new_a_sNL;		//delta-Energy of sliding left one position
 double new_a_sNR;		// "	"	"	" right "	"
 
-double new_a_removeTF;
-double new_a_addTF;
-double new_a_sTFL;			//delta-Energy of sliding left one position
-double new_a_sTFR;			// "	"	"	" right "	"
-
 
 switch( type)
 	{
@@ -1887,22 +1254,10 @@ switch( type)
 		new_a_addN  = ka_N*k_E( -muN(x) ); //---always weight mu on addition.
 		}
 
-	   if( (distance(x,pos[x].part_right) < m) || ( distance(pos[x].part_left,x) < footprint &&  neighbours[0] ==1 ) || (!TFs_allowed) )
-		{
-		new_a_addTF =0.0;
-		}
-	   else
-		{
-		new_a_addTF = ka_TF*k_E( -muTF(x) );
-		}
-
 	new_a_removeN  = 0.0;
-	new_a_removeTF = 0.0;
 
 	new_a_sNL  = 0.0;
 	new_a_sNR  = 0.0;
-	new_a_sTFL = 0.0;	
-	new_a_sTFR = 0.0;
 
 	break;
 
@@ -1936,43 +1291,9 @@ switch( type)
 		}
 
 	new_a_addN  = 0.0;
-	new_a_sTFL = 0.0;
-	new_a_sTFR = 0.0; // A TF can't slide either way from here, if this is a nucl
-	new_a_addTF = 0.0;
-	new_a_removeTF = 0.0;
 
 	break;
 	
-	case 2://---------------------Transcription factor------------------------------
-
-	if( (distance(pos[x].part_left,x) <= footprint &&  neighbours[0] ==1 ) ||  pos[left(x)].state !=0 )
-		{
-		new_a_sTFL = 0.0;
-		}
-	else
-		{
-		new_a_sTFL = ks_TF*gsl_sf_exp( -1.0 * max ( muTF(left(x))- muTF(x) , 0  )  );
-		}
-
-	if(  distance(x,pos[x].part_right) <= footprint)    
-		{
-		new_a_sNR = 0.0;
-		}
-	else
-		{
-		new_a_sTFR = ks_TF*gsl_sf_exp( -1.0 * max ( muTF(right(x))- muTF(x) , 0  )  );
-		}
-	
-	new_a_removeTF  = ka_TF*1.0;
-
-	new_a_addN     = 0.0;
-	new_a_removeN  = 0.0;
-	new_a_sNL  = 0.0;
-	new_a_sNR  = 0.0;
-	new_a_addTF = 0.0;
-
-	break;
-
 
 	default://---------------------ERROR CATCH ------------------------------
 		cout <<"\n HNG analysing senseless case!!! \n ";
@@ -1987,10 +1308,6 @@ switch( type)
 2 sNL     
 3 sNR     
 
-4 removeTF 
-5 addTF    
-6 sTFL     
-7 sTFR     
 */
 
 //----------output is always the same---------------
@@ -1998,11 +1315,6 @@ HNG_outputrates[0]=new_a_removeN;
 HNG_outputrates[1]=new_a_addN;
 HNG_outputrates[2]=new_a_sNL;
 HNG_outputrates[3]=new_a_sNR;
-
-HNG_outputrates[4]=new_a_removeTF;
-HNG_outputrates[5]=new_a_addTF;
-HNG_outputrates[6]=new_a_sTFL;
-HNG_outputrates[7]=new_a_sTFR;
 
 return type;
 }
@@ -2037,10 +1349,6 @@ int j;
 			}
 
 		get_filling_frac( );
-		if ( !TFs_allowed)
-			{
-			increment_void_histogram(void_histogram);
-			}
 		
 		if (calculate_entropy)
 			{
@@ -2131,7 +1439,7 @@ int j;
 
 for(j=0;j<total_obs_eq;j++)//---total_obs_eq is the number of observations we are making at equilibrium time points.
 	{
-	if(  ( tpoints_eq[j] > t)  &&  ( tpoints_eq[j] <= (t+tau)) && !TFs_allowed ) 
+	if(  ( tpoints_eq[j] > t)  &&  tpoints_eq[j] <= (t+tau) ) 
 		{ // if this time-step straddles an observation point, and there are no TFs present.
 
 		increment_void_histogram_equilibrium( void_histogram_equilibrium  );
@@ -2262,14 +1570,6 @@ if( Size_current_tvec==0 || !match_found)	//--- DIDN'T FIND A MATCH IN THE EXIST
 //------------------------ now add the H contribution together -------------------
 x=pos[Llim-1].part_right;
 
-if(TFs_allowed )
-	{
-	cout << "\n ERROR: cannot handle entropy calculation when TFs are present.";
-	*log << "\n ERROR: cannot handle entropy calculation when TFs are present.";
-	(*log).close();
-	exit(1);
-	}
-
 for(i=0;i<Nucnum;i++)	
 	{
 	C_t.H += interaction_NN( distance(x,pos[x].part_right)) ;
@@ -2372,130 +1672,8 @@ for (i=0;i<N;i++) //---N.B. if N==0, then this will just automatically return 't
 	}
 return result;	
 }
-
 //******************************************************************************
 
-int GAdata::observe_TF_occ_lag( void ) //----for determining the the average 
-{								//occupancy of the two TF sites.
-
-bool result=false;
-int repetition =0; 
-int i,j;
-
-int temp_F0[nbins];
-int temp_F1[nbins];	//arrays of 0 or 1 -either it's occupied at a point in time (1), or it's not (0)
-
-int n0=0;
-int n1=1;		//---temp variables to keep track of number of tpoints each site is occupied.
-
-
-for(j=0;j<nbins;j++)
-	{
-	temp_F0[j] = get_site_tpoint_occ( t_trans +(double(j)*dtau_obs)  , 0);
-	n0 += temp_F0[j];
-
-	temp_F1[j] = get_site_tpoint_occ( t_trans +(double(j)*dtau_obs)  , 1);
-	n1 += temp_F1[j];
-	} 
-
-testing_avg_F0_occupation = (double(n0)/double(nbins));
-testing_avg_F1_occupation = (double(n1)/double(nbins));
-
-for(i=0;i<nbins;i++)
-	{	//----'i' is the index of how much lag we're actually measuring
-	for(j=0;j<(nbins-i);j++)
-		{//----'j' is the index of integration through the time series.
-		testing_olap_y[i] += (1.0/double(nbins-i) )*double(temp_F0[j]*temp_F1[j+i]);
-		}
-	}
-
-return result;
-}
-//******************************************************************************
-int GAdata:: get_site_tpoint_occ( const double t  , const int site) //returns 1 or 0
-{
-int i; int result;
-int bindeventnum;
-bindevent * event_array;
-
-
-//---------  DETERMINE WHICH SITE WE ARE LOOKING AT: ----------------------
-
-if(site == 0)
-	{
-	bindeventnum = bindeventnum_F0;
-	event_array  = event_array_F0;
-	}
-else if(site == 1)
-	{
-	bindeventnum = bindeventnum_F1;
-	event_array  = event_array_F1;
-	}
-else
-	{
-	*log << "\n ERROR, don't know what site this is:\n";
-	(*log).close();
-	exit(1);
-	}
-
-//-------------------------------------------------------------------------
-
-if( bindeventnum == 0)
-	{
-	*log << "\n ERROR, no binding events discovered in get_site_tpoint_occ:\n";
-	(*log).close();
-	exit(1);
-	}
-
-i=0;	
-while(event_array[i].t < t)
-	{
-	i++;
-	if (i == bindeventnum)
-		{
-//		*log << "\n ERROR, reached end of binding events list in get_site_tpoint_occ:\n";
-//		(*log).close();
-//		exit(1);		//---toward the end we might actually be reading after the last event.
-		if (event_array[i-1].onoroff == 1 )
-			result = 1;
-		else if ( event_array[i-1].onoroff == -1  )
-			result = 0;
-		else
-			{ *log << "\n ERROR: don't know what [i-1] onoroff is\n"; (*log).close(); exit(1);}
-
-		goto finished_getting_tpoint;
-		}
-	}
-
-if (i == 0)
-	{
-	*log << "\n ERROR, didn't even get to 1 in the event list in  get_site_tpoint_occ:\n";
-	cout << "\n IGNORING THIS...\n";	
-//	(*log).close();
-//	exit(1);
-	}
-
-if ( (event_array[i-1].t < t ) &&  (event_array[i].t > t )  )
-	{
-	if (event_array[i-1].onoroff == 1 )
-		result = 1;
-	else if ( event_array[i-1].onoroff == -1  )
-		result = 0;
-	else
-		{ *log << "\n ERROR: don't know what [i-1] onoroff is\n"; (*log).close(); exit(1);}
-	}
-
-else
-	{
-	*log << "\n ERROR, outside t bounds in get_site_tpoint_occ:\n";
-	(*log).close();
-	exit(1);
-	}
-
-finished_getting_tpoint:
-return result;
-}
-//*****************************************************************
 int GAdata::increment_2_part_corr( int timepoint )
 {//---calculates the distributed 2-particle correlation function for the entire array.
 
@@ -2637,16 +1815,13 @@ int GAdata::increment_1_point_hist( int timepoint )
 
 //-----------------------------------------------------------
 int * one_point_hist_N;	//----temporary array that can point to either of the sets of 2pc arrays we want.
-int * one_point_hist_TF;
 if( timepoint == -1)
 	{
 	one_point_hist_N  = onepoint_histocc_N_eq;
-	one_point_hist_TF = onepoint_histocc_TF_eq;
 	}
 else
 	{
 	one_point_hist_N  = onepoint_histocc_N_ti[timepoint];
-	one_point_hist_TF = onepoint_histocc_TF_ti[timepoint];
 	}
 
 //-----------------------------------------------------------
@@ -2659,11 +1834,6 @@ for(x=0;x<Llim;x++)
 		{
 		one_point_hist_N[x]++;
 		}
-	else if( pos[x].state == 2 )	// --- if there is a TF here at this time.
-		{
-		one_point_hist_TF[x]++;
-		}
-
 	}
 
 	
@@ -2740,14 +1910,6 @@ int	last_part = pos[0].part_left;
 int p2p; //---interparticle distance (from the same landmark on the particle).
 int void_size;	//-self-explanatory.
 
-if(TFs_allowed)
-	{
-	*log << "\n ERROR: incrementing void_histogram with TFs allowed. Exiting. \n\n";
-	cout << "\n ERROR: incrementing void_histogram with TFs allowed. Exiting. \n\n";
-	(*log).close();
-	exit(1);
-	}	
-
 //-----------------------------------------------------------------------
 if(Nucnum < 1 )
 	{
@@ -2817,13 +1979,6 @@ int	last_part = pos[0].part_left;
 int p2p; //---interparticle distance (from the same landmark on the particle).
 int void_size;	//-self-explanatory.
 
-if(TFs_allowed)
-	{
-	*log << "\n ERROR: incrementing void_histogram with TFs allowed. Exiting. \n\n";
-	cout << "\n ERROR: incrementing void_histogram with TFs allowed. Exiting. \n\n";
-	(*log).close();
-	exit(1);
-	}	
 //-----------------------------------------------------------------------
 if(Nucnum < 1 )
 	{
@@ -2918,392 +2073,9 @@ for(tp=0;tp<total_obs_filling;tp++)	//-----loop over time points.
 
 return 1;
 }
-//****************************************************************************
-int GAdata::get_tarray_from_stack(void)
-{
-int i;
-
-bindeventnum_F0 = pos[F0].event_list.size(); 
-bindeventnum_F1 = pos[F1].event_list.size();
-// every position has a stack of 'binding events' (struct bindevent specifies species, and on or off)
-// Here we take the stack from the position that corresponds to the F0, and F1 position, and determine the number of events that are involved
-// we then generate an array to manage those events.
-
-
-event_array_F0 = new bindevent[bindeventnum_F0];
-event_array_F1 = new bindevent[bindeventnum_F1];
-built_array_of_binding_events = true;
-
-//--------------------------------------
-for(i=0; i < bindeventnum_F0 ; i++)
-        {
-        event_array_F0[i] = pos[F0].event_list.front();
-        pos[F0].event_list.pop();
-        }
-
-for(i=0; i < bindeventnum_F1 ; i++)
-        {
-        event_array_F1[i] = pos[F1].event_list.front();
-        pos[F1].event_list.pop();
-        }
-
-//-------now check for any errors that might have crept into the list.
-for(i=0; i < bindeventnum_F0-1 ; i++)
-        {
-			if( (event_array_F0[i].onoroff * event_array_F0[i+1].onoroff ) != -1)
-				{ //----CHECK THAT THE PRODUCT OF SUCCESSIVE ONOROFF'S IS ALWAYS -1
-				flag= -129343;
-				cout  << "error in stack -contradiction in binding type order.\n\n";
-				*log  << "error in stack -contradiction in binding type order.\n\n";
-				process_error( i);
-				}
-			if( event_array_F0[i].t >= event_array_F0[i+1].t )
-				{//----CHECK THAT THE BINDING EVENTS ALWAYS HAPPEN IN SEQUENCE 
-				flag= -12934;
-				cout  << "error in stack -contradiction in time sequence.\n\n";
-				*log  << "error in stack -contradiction in time sequence.\n\n";
-				process_error( i);
-				}
-		}
-
-for(i=0; i < (bindeventnum_F0/2)-1 ; i++)
-        {
-		if( event_array_F0[2*i].onoroff != 1 ||   event_array_F0[2*i+1].onoroff != -1)
-			{ //---CHECK THAT ALL ODD EVENTS ARE 'ON' AND ALL EVEN EVENTS ARE 'OFF'
-				flag= -12935;
-				cout << "error in stack -contradiction in absolute binding type order.\n\n";
-				*log << "error in stack -contradiction in absolute binding type order.\n\n";
-				process_error( i);
-			}
-		if( event_array_F0[2*i].species !=  event_array_F0[2*i+1].species )
-			{ //--- CHECK THAT WHEN ONE KIND OF PARTICLE BINDS, THE  SAME ONE RELEASES.
-				flag= -12936;
-				cout << "error in stack -species has somehow changed.\n\n";
-				*log << "error in stack -species has somehow changed.\n\n";
-				process_error( i);
-			}
-			
-		}
-
-for(i=0; i < bindeventnum_F1-1 ; i++)
-        {
-			if( (event_array_F1[i].onoroff * event_array_F1[i+1].onoroff ) != -1)
-				{
-				flag= -129343;
-				cout  << "error in stack -contradiction in binding type order.\n\n";
-				*log  << "error in stack -contradiction in binding type order.\n\n";
-				process_error( i);
-				}
-			if( event_array_F1[i].t >= event_array_F1[i+1].t )
-				{
-				flag= -12934;
-				cout  << "error in stack -contradiction in time sequence.\n\n";
-				*log  << "error in stack -contradiction in time sequence.\n\n";
-				process_error( i);
-				}
-		}
-
-for(i=0; i < (bindeventnum_F1/2)-1 ; i++)
-        {
-		if( event_array_F1[2*i].onoroff != 1 ||   event_array_F1[2*i+1].onoroff != -1)
-			{
-				flag= -12935;
-				cout << "error in stack -contradiction in absolute binding type order.\n\n";
-				*log << "error in stack -contradiction in absolute binding type order.\n\n";
-				process_error( i);
-			}
-		if( event_array_F1[2*i].species !=  event_array_F1[2*i+1].species )
-			{
-				flag= -12936;
-				cout << "error in stack -species has somehow changed.\n\n";
-				*log << "error in stack -species has somehow changed.\n\n";
-				process_error( i);
-			}
-			
-		}
-
-
-//----if we've made it to the end here, then everything checks out.
-return 1;
-}
-
-
-//****************************************************************************
-int  GAdata::get_delayed_tcorr(const double * time_corr_t, double *time_corr_y, double *raw_overlap, const int nbins)
-{ //---get the delayed time correlation between occupancy of two different TFs at different positions on the array.
-
-int i;
-double olap =0.0 ;
-
-avg_F0_occupation = get_frac_occupied(t_trans, tf, 0);
-avg_F1_occupation = get_frac_occupied(t_trans, tf, 1);
-
-	
-for (i=0;i<nbins;i++)
-	{
-	olap    = get_overlap(time_corr_t[i] );
-	
-	//-----DELETE THIS ------
-
-	raw_overlap[i] += olap;
-
-	//-----DOWN TO HERE------
-
-	time_corr_y[i] += olap -  (avg_F0_occupation *avg_F1_occupation ) ;
-	}
-		
-return 1;
-}
-//****************************************************************************
-double  GAdata::get_overlap(const double  tau )
-{
-int i=0,n=0;
-double t_upperlim = tf - tau;
-
-double t1=0.0,t2=0.0;
-
-double addfrac=0.0;
-
-double T_num=0.0;
 
 
 
-if ( (bindeventnum_F0 ==0) || (bindeventnum_F1 ==0) )
-	{
-	return 0.0;
-	}
-else if(event_array_F0[0].t > t_upperlim )
-	{//the first one doesn't arrive untill too late to compare.
-	return 0.0;
-	}
-	
-else
-	{//at least one binding event that we can consider.
-	n=0;
-	i=0;
-
-	//------------------FIRST CATCH THE SEGMENT JUST AFTER THE TRANSIENT PERIOD ------------------------------------
-	while( event_array_F0[i].t < t_trans )
-		{
-		if( i == (bindeventnum_F0-1) || ( event_array_F0[i].t > t_upperlim ) )
-			{
-			*log << "ERROR in get_overlap, reactions too rare - we reached an end segment" << endl; (*log).close();
-			cout << "ERROR in get_overlap, reactions too rare - we reached an end segment" << endl; 
-			exit(1);
-			}
-		i++;
-		}
-	if( (i ==0 ) )
-		{ 
-		*log << "ERROR in get_overlap, still at i=0 " << endl;  (*log).close();
-		cout << "ERROR in get_overlap, still at i=0 " << endl;  
- 		exit(1);
-		}
-		//---the integer 'i' should now be the index of the reaction directly after the transient cutoff;
-	if( ( event_array_F0[i-1].species ==2 ) && (event_array_F0[i-1].onoroff == 1)  )
-		{
-		T_num   += (event_array_F0[i].t - t_trans)*get_frac_occupied(t_trans + tau, event_array_F0[i].t +tau, 1 );
-		}	//---otherwise, it was off anyway, and you can just skip right on to the next.
-
-	//------------------CAUGHT THE TRANSIENT PART NOW 'i' IS IN THE STEADY STATE INDICES ------------------------------------
-
-	while ( i< (bindeventnum_F0) )
-		{
-		if( ( event_array_F0[i].species ==2 ) && (event_array_F0[i].onoroff == 1) && (event_array_F0[i].t < t_upperlim) )
-			{// if it's a TF that arrived now, and 'now' is a time before t_upperlim.
-
-			//-----CONSIDER PECULIARITIES REGARDING THE ENDPOINT IN TIME.
-			if (i+1 == bindeventnum_F0) //if it binds this time and then stays forever.
-				{
-				T_num   += (t_upperlim - event_array_F0[i].t)*get_frac_occupied(event_array_F0[i].t +tau,t_upperlim+tau, 1 );
-				break;
-				}
-			else if (event_array_F0[i+1].t > t_upperlim) //if there are more binding events, but they happen after t_upperlim.
-				{
-				T_num   += (t_upperlim - event_array_F0[i].t)*get_frac_occupied(event_array_F0[i].t +tau,t_upperlim+tau, 1 );
-				break;
-				}
-			else
-				{// if we we are still dealing with intermittent binding events inside the time period under consideration.	
-				T_num     += ( event_array_F0[i+1].t - event_array_F0[i].t )*get_frac_occupied(  event_array_F0[i].t +tau, event_array_F0[i+1].t + tau, 1 );
-				}
-
-			n++;
-			}  
-		i++;
-		}
-
-
-return ( T_num/(t_upperlim -t_trans) ) ; 
-	}	
-	
-}
-//****************************************************************************
-double  GAdata::get_frac_occupied(const double  t1, const double t2, const int site )
-{ // given two delimiting time points t1,t2, determine the AMOUNT of time therein that F1 was TF-occupied.
-
-int i=0;
-double T_num   = 0.0;
-double T_denom = t2-t1;
-
-int after_t1i=0;
-int after_t2i=0;
-
-int bindeventnum;
-bindevent * event_array;
-
-if(site == 0)
-	{
-	bindeventnum = bindeventnum_F0;
-	event_array  = event_array_F0;
-	}
-else if(site == 1)
-	{
-	bindeventnum = bindeventnum_F1;
-	event_array  = event_array_F1;
-	}
-else
-	{
-	*log << "\n error, don't know what site this is:\n";
-	(*log).close();
-	exit(1);
-	}
-
-if( bindeventnum == 0)
-	{
-	return 0.0;
-	}
-
-
-i=0;	
-	while(event_array[i].t < t1)
-		{
-		i++;
-		if (i == bindeventnum)
-			break;
-		}
-	after_t1i = i;
-
-	i=0;
-	while(event_array[i].t < t2)
-		{
-		i++;
-		if (i == bindeventnum)
-			break;
-		}	
-	after_t2i = i;
-
-if( after_t1i == after_t2i ) // here nothing happened during the window, return either 1.0 or 0.0
-	{
-
-	if(after_t1i ==0) // the very first 'on' is already past the window:
-		{//we were still 'off' the whole time.
-		T_num=0.0;
-		}
-	else if( event_array[after_t1i -1].onoroff == -1) // the preceeding event was an 'off'
-		{
-		T_num = 0.0;
-		}
-	else if( event_array[after_t1i -1].onoroff == 1) // the preceeding event was an 'on'
-		{
-		T_num = t2-t1;
-		}
-
-	}
-else
-	{ //---here there must have been an event inside the window.
-
-	i=after_t1i;
-	T_num += (event_array[i].t-t1)*increment_ending_at(i,site) ; // catch the initial time block
-			
-	while(i<bindeventnum)
-		{
-		if( i+1 == bindeventnum) // i.e. is this is the last event that ever happens.
-			{
-			T_num += ( t2 - event_array[i].t)*increment_beginning_at(i,site); //catch the end block
-			break;
-			}
-		else if( event_array[i+1].t > t2 ) // i.e. there are more events, but they happen after the window.
-			{
-			T_num += ( t2 - event_array[i].t)*increment_beginning_at(i,site); //catch the end block
-			break;
-			}
-		else	// here both this event AND the next one are still inside the window.
-			T_num += ( event_array[i+1].t - event_array[i].t)*increment_beginning_at(i,site);
-			// in this case we just took a block completely inside, and we keep going.
-		i++;
-		}
-		
-				
-	}
-																
-return T_num/T_denom;			
-}
-
-//****************************************************************************
-double GAdata::increment_beginning_at( const int eventi, const int site )
-{
-
-double result;
-int bindeventnum;
-bindevent * event_array;
-
-if(site == 0)
-	{
-	bindeventnum = bindeventnum_F0;
-	event_array  = event_array_F0;
-	}
-else if(site == 1)
-	{
-	bindeventnum = bindeventnum_F1;
-	event_array  = event_array_F1;
-	}
-else
-	{
-	*log << "\n error, don't know what site this is:\n";
-	(*log).close();
-	exit(1);
-	}
-
-if (  (event_array[eventi].onoroff == 1) && (event_array[eventi].species==2) )
-	result = 1.0;
-else
-	result = 0.0;
-	
-return result;
-}
-//****************************************************************************
-double GAdata::increment_ending_at( const int eventi, const int site )
-{
-double result;
-int bindeventnum;
-bindevent * event_array;
-
-if(site == 0)
-	{
-	bindeventnum = bindeventnum_F0;
-	event_array  = event_array_F0;
-	}
-else if(site == 1)
-	{
-	bindeventnum = bindeventnum_F1;
-	event_array  = event_array_F1;
-	}
-else
-	{
-	*log << "\n error, don't know what site this is:\n";
-	(*log).close();
-	exit(1);
-	}
-	
-	
-if (  (event_array[eventi].onoroff == -1) && (event_array[eventi].species==2) )
-	result = 1.0;
-else
-	result = 0.0;
-
-return result;
-}
 //****************************************************************************
 
 int GAdata::check_rates( void )
@@ -3313,20 +2085,17 @@ int i = 0;
 int x = 0;
 int result;
 
-int neighbours[4];
+int neighbours[reactions_per_site];
 
 double check_a_addN=0.0;	//delta-Energy of removal from system
 double check_a_removeN=0.0;
 double check_a_sNL=0.0;		//delta-Energy of sliding left one position
 double check_a_sNR=0.0;		// "	"	"	" right "	"
 
-double check_a_addTF=0.0;
-double check_a_removeTF=0.0;
-double check_a_sTFL=0.0;	//delta-Energy of sliding left one position
-double check_a_sTFR=0.0;	// "	"	"	" right "	"
 
-double HNGrates[8];
-for(i=0;i<8;i++)
+
+double HNGrates[reactions_per_site];
+for(i=0;i<reactions_per_site;i++)
 	HNGrates[i] =0.0;
 
 	//--------------NOW SCAN THROUGH THE ARRAY-------------
@@ -3350,7 +2119,6 @@ for(x=0;x<Llim;x++)
 		{
 		get_HNG_rates(0,HNGrates, neighbours, x);
 		check_a_removeN  = HNGrates[0]; check_a_addN  = HNGrates[1]; check_a_sNL  = HNGrates[2]; check_a_sNR  = HNGrates[3];
-		check_a_removeTF = HNGrates[4]; check_a_addTF = HNGrates[5]; check_a_sTFL = HNGrates[6]; check_a_sTFR = HNGrates[7];
 		}
 	  else
 		{ //--- SNG||LNG------------------------------------------- :
@@ -3369,27 +2137,6 @@ for(x=0;x<Llim;x++)
 			//---here the addition reaction takes the full mu, but only takes account of BZalpha*the interaction energy.
 			}
 
-		if( (distance(x,pos[x].part_right) < m) || !TFs_allowed)
-			check_a_addTF =0.0;
-		else
-			{
-
-			if( boltzmann_on_add || boltzmann_on_uphill )
-				{
-				check_a_addTF = ka_TF*k_E( -muTF(x) + interaction_dEadd(2, x, neighbours ) );
-				}
-			else if( boltzmann_on_removal )
-				{
-				check_a_addTF = ka_TF*k_E( -muTF(x) );
-				}
-			else if( boltzmann_on_addrem_intermed )
-				{
-				check_a_addTF = ka_TF*k_E( -muTF(x) + BZalpha * interaction_dEadd(2, x, neighbours ) );
-				//---here the addition reaction takes the full mu, but only takes account of BZalpha*the interaction energy.
-				}
-
-			}
-
 
 		//--k_E takes as an argument the energy change that will result.
 		//--interaction already accounts for the offset of the outside interactions
@@ -3400,12 +2147,6 @@ for(x=0;x<Llim;x++)
 		check_a_sNL  = 0.0;
 		check_a_sNR  = 0.0;
 
-		if(TFs_allowed)	//time-saving for efficiency sake.
-			{
-			check_a_removeTF = 0.0;
-			check_a_sTFL = 0.0;	
-			check_a_sTFR = 0.0;	
-			}
 		}
 	break;
 	
@@ -3416,7 +2157,6 @@ for(x=0;x<Llim;x++)
 		{		
 		get_HNG_rates(1,HNGrates, neighbours, x);
 		check_a_removeN  = HNGrates[0]; check_a_addN  = HNGrates[1]; check_a_sNL  = HNGrates[2]; check_a_sNR  = HNGrates[3];
-		check_a_removeTF = HNGrates[4]; check_a_addTF = HNGrates[5]; check_a_sTFL = HNGrates[6]; check_a_sTFR = HNGrates[7];
 		}
 	   else
 		{ //--- SNG   or LNG  ----------:	
@@ -3454,13 +2194,6 @@ for(x=0;x<Llim;x++)
 
 		check_a_addN  = 0.0;
 
-		if(TFs_allowed)
-			{
-			check_a_addTF = 0.0;
-			check_a_sTFL = 0.0;
-			check_a_sTFR = 0.0;
-			check_a_removeTF = 0.0;
-			}
 		}
 
 	   if(bind_irrev || pos[x].permanent) //---do this at the end, thus overwriting previous assignments intentionally
@@ -3470,90 +2203,17 @@ for(x=0;x<Llim;x++)
 
 	break;
 
-	case 2: //---TF left-edge here -------
-
-	   if( ! TFs_allowed)
-		{
-		flag=16379;
-		process_error( x );
-		}
-
-	   if(HNG)
-		{
-		get_HNG_rates(2,HNGrates, neighbours, x);
-		check_a_removeN  = HNGrates[0]; check_a_addN  = HNGrates[1]; check_a_sNL  = HNGrates[2]; check_a_sNR  = HNGrates[3];
-		check_a_removeTF = HNGrates[4]; check_a_addTF = HNGrates[5]; check_a_sTFL = HNGrates[6]; check_a_sTFR = HNGrates[7];
-		}
- 	   else
-		{ //--- SNG || LNG:	
-
-		if (boltzmann_on_add)
-			{
-			check_a_removeTF  = ka_TF*1.0;
-			}
-
-		else if ( boltzmann_on_removal || boltzmann_on_uphill )
-			{
-			check_a_removeTF  = ka_TF*k_E( - interaction_dEadd(2, x, neighbours) );
-			}
-		else if ( boltzmann_on_addrem_intermed )
-			{
-			check_a_removeTF  = ka_TF*k_E( (1.0-BZalpha)*(-interaction_dEadd(2, x, neighbours)) );
-			}
-
-	   	else
-			{
-			flag=411357; cout <<"\n ERROR 5 : not sure when to apply boltzmann factor.\n";
-			process_error( x );
-			}
-
-
-		if(pos[left(x)].state ==0  || ks_TF > 0.0) 
-			check_a_sTFL = ks_TF*gsl_sf_exp( -1.0 * max ( dEsL(2, x, neighbours ), 0 ) );
-		else
-			check_a_sTFL = 0.0;
-
-		if( distance(x ,neighbours[3] )  <= m || ks_TF > 0.0 )
-			check_a_sTFR = 0.0;
-		else
-			check_a_sTFR = ks_TF*gsl_sf_exp( -1.0 * max ( dEsR(2, x, neighbours ), 0) );
-
-		check_a_addN  = 0.0;
-		check_a_removeN  = 0.0;
-		check_a_sNL  = 0.0;
-		check_a_sNR  = 0.0;
-		check_a_addTF = 0.0;
-		}
-
-		//-------------------------------------------------------
-
-
-	   if(bind_irrev || pos[x].permanent)
-		{ 
-		check_a_removeTF =  0.0; //---do this at the end, thus overwriting previous assignments intentionally
-		}
-
-	break;
-
 
 	default: //----here is somewhere inside a TF -all reactions are zero here.
-		check_a_addN  = 0.0;
-		check_a_addTF = 0.0;
-		check_a_removeN  = 0.0;
-		check_a_removeTF = 0.0;
-
-		check_a_sNL  = 0.0;
-		check_a_sNR  = 0.0;
-		check_a_sTFL = 0.0;	
-		check_a_sTFR = 0.0;	
-
+		cout << "\n ERROR: checking outside of range of reactions.\n";
+		exit(1);
 
 	break;
 
 	}  //----end the switch-case structure to determine what the state is 
 
 //----CHECK IF ANYTHING IS NEGATIVE----
-   if( (check_a_addN < 0.0 ) || (check_a_addTF < 0.0 ) ||(check_a_removeN < 0.0 ) ||(check_a_removeTF < 0.0 ) ||(check_a_sNL < 0.0 ) ||(check_a_sNR < 0.0 ) ||(check_a_sTFL < 0.0 ) ||(check_a_sTFR < 0.0 ) )
+   if( (check_a_addN < 0.0 ) ||(check_a_removeN < 0.0 ) ||(check_a_sNL < 0.0 ) ||(check_a_sNR < 0.0 )  ) 
 	{ 
 	flag = -1234;
 	process_error(x);
@@ -3624,76 +2284,11 @@ for(x=0;x<Llim;x++)
 	*pos[x].a_sNR = check_a_sNR;
 	process_error(x);
 	}
-//-----a4----------
-   if( check_a_removeTF == 0.0 ) 
-	{
-	   if( *pos[x].a_removeTF != 0.0 )	   
-		{ 
-		flag = 7500; 
-		process_error(x); 
-		}
-	}
-   else if( gsl_sf_log(fabs(check_a_removeTF/(*pos[x].a_removeTF))) > 0.00001 ) 
-	{ 
-	flag = 7105; 
-	*log << "\n rate discrepancy in a4 at position x=" << x << ", autocorrecting.\n";
-	*pos[x].a_removeTF = check_a_removeTF;
-	process_error(x);
-	}
-//-----a5----------
-   if( check_a_addTF == 0.0 ) 
-	{
-	   if( *pos[x].a_addTF != 0.0 )	   
-		{ 
-		flag = 7600; 
-		process_error(x); 
-		}
-	}
-   else if( gsl_sf_log(fabs(check_a_addTF/(*pos[x].a_addTF))) > 0.00001 ) 
-	{ 
-	flag = 7106; 
-	*log << "\n rate discrepancy in a5 at position x=" << x << ", autocorrecting.\n";
-	*pos[x].a_addTF = check_a_addTF;
-	process_error(x);
-	}
-//-----a6----------
-   if( check_a_sTFL == 0.0 ) 
-	{
-	   if( *pos[x].a_sTFL != 0.0 )	   
-		{ 
-		flag = 7700; 
-		process_error(x); 
-		}
-	}
-   else if( gsl_sf_log(fabs(check_a_sTFL/(*pos[x].a_sTFL))) > 0.00001 ) 
-	{ 
-	flag = 7107; 
-	*log << "\n rate discrepancy in a6 at position x=" << x << ", autocorrecting.\n";
-	*pos[x].a_sTFL = check_a_sTFL;
-	process_error(x);
-	}
-//-----a7----------
-   if( check_a_sTFR == 0.0 ) 
-	{
-	   if( *pos[x].a_sTFR != 0.0 )	   
-		{ 
-		flag = 7800; 
-		process_error(x); 
-		}
-	}
-   else if( gsl_sf_log(fabs(check_a_sTFR/(*pos[x].a_sTFR))) > 0.00001 ) 
-	{ 
-	flag = 7108; 
-	*log << "\n rate discrepancy in a6 at position x=" << x << ", autocorrecting.\n";
-	*pos[x].a_sTFR = check_a_sTFR;
-	process_error(x);
-	}
-
 //----------------------
-	
+
+	}//---end for x=0..Llim
 
 
-   }//---end for x=0..Llim
 //+++++++++++++++++++++++++++++DOWN TO HERE+++++++++++++++++++++++++++++++++
 
 

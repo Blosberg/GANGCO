@@ -31,8 +31,8 @@
 #include <queue>  //in order to stack the events of binding/unbinding
 #include <dirent.h>
 
-#include "GA_GC_NTF.h"
-#include <GA_NTF_standards.h>
+#include "GA_GC_N.h"
+// #include <GA_NTF_standards.h>
 #include <GA_absolute_standards.h>
 #include <bren_lib.h>
 
@@ -92,16 +92,10 @@ int  footprint;		// footprint of the nuc, regardless of hard or soft. m=length o
 int h[3]; h[0]=h[1]=h[2]=0;
 double muN_input;	//---the original value (without coarse-graining)
 double muN;		//--- this one MIGHT get changed.
-double muTF0, muTF1;
-int m; 			//--- the size of the TF
-
-int F[2]; // --- the coordinates of TF specific binding
-
 
 int numtrials;
 
 double kS_N,  kA_N;   // BASIC RATE CONSTANTS FOR SLIDING AND ADDITION/REMOVAL for nucleosomes.
-double kS_TF, kA_TF;  //     "		"		"		"      for transcription factors.	
 
 bool krm_b;	//---  do we or do we not have active remodellers in the system.
 double krm_val;	//---  if we do, how strongly do they act?
@@ -189,12 +183,11 @@ double t_trans; //---- the 'transient' time period after which equilibrium prope
 		//---- WHETHER TRANSIENT EFFECTS ARE REALLY GONE BY THIS TIME)
 
 //-----------------------------------------------------------------------------------------------
-
 //  ----  READ IN PARAMETERS FOR THE SIMULATION FROM THE IN FILE.-----------------
 
 char cpath[charlength];
 clear_charray(cpath, charlength );
-sprintf(cpath, "./GA_GC_NTF.in"); //----input file should always be in the working directory.
+sprintf(cpath, "./GA_GC_N.in"); //----input file should always be in the working directory.
 ifstream datin;
 
 datin.open(cpath);
@@ -220,16 +213,12 @@ if( datin.fail() )
 	exit(1);
 	}
 
-datin  >> kS_N  >> kA_N >> kS_TF  >> kA_TF;
-datin  >> Llim  ;  			//---Llim in LATTICE SITES, (after CG-ing), not bp.
-datin  >> t0   >> tf >>  t_trans >> dt_obs >> dtau_plot >> max_tcorr; 
-//--Llim - system size; dt_obs is now just the time we _start_ looking.
+datin  >> kS_N  >> kA_N;
+datin  >> Llim  ;  				//---Llim in LATTICE SITES, (after CG-ing), not bp.
+datin  >> t0   >> tf >>  t_trans >> dt_obs ; 
+						//--Llim - system size; dt_obs is now just the time we _start_ looking.
 
 datin  >> footprint ;	//----in the HNG case, we just take 'w' to mean 'k'
-datin  >> m ;    
-
-datin  >> muTF0 >> muTF1;
-datin  >> F[0]   >> F[1];
 
 datin  >> krm_b                 >> krm_val;
 datin  >> should_plot_snapshots >> Nplots2makeshort  >> Nplots2makelong;
@@ -249,7 +238,7 @@ datin.close();
 //--------- @@@ THESE OPTIONS denote per-footprint input... JUST FOR K-MER TESTING------
 muN = muN_input-gsl_sf_log(double(footprint)); //---- here convert per-footprint to per-lattice site muN
 E0  = E0/double(footprint);
-// ---------------------@@@ DELETE down to here -----------------------------
+// ---------@@@ DELETE down to here -----------------------------------------------------
 
 
 if( paritycheck != 88885888 )
@@ -422,7 +411,7 @@ t=0;
 int R=0; // ----the index of the reaction of interest.
 int Rtype;
 
-M = 8*Llim;	// the number of possible reactions -- most of which will have 0 amplitude
+M = reactions_per_site*Llim;	// the number of possible reactions -- most of which will have 0 amplitude
 cout << endl;
 
 //-------------------get arrays for t-filling--------------
@@ -475,17 +464,14 @@ int    ** void_histogram  = new int*[total_obs_filling];
 //-----------------   allocate and initialize overall population arrays ----------------
 
 double OavN_eq[Llim];
-double OavTF_eq[Llim];
 double output2partcorr_eq[Llim];
 
 
 init_array( OavN_eq           , Llim, 0.0 );
-init_array( OavTF_eq          , Llim, 0.0 );
 init_array( output2partcorr_eq, Llim, 0.0 );
 
 double * output2partcorr_ti[total_obs_filling]; //----now the transient quantity.
 double * OavN_ti[total_obs_filling];
-double * OavTF_ti[total_obs_filling];
 
 
 for(t_index=0; t_index<total_obs_filling; t_index++)
@@ -493,12 +479,8 @@ for(t_index=0; t_index<total_obs_filling; t_index++)
 	OavN_ti[t_index]            = new double[Llim];
 	init_array( OavN_ti[t_index], Llim, 0.0);
 
-        OavTF_ti[t_index]           = new double[Llim];
-	init_array( OavTF_ti[t_index], Llim, 0.0);
-
 	output2partcorr_ti[t_index] = new double[Llim];
 	init_array( output2partcorr_ti[t_index], Llim, 0.0);
-
 	}
 
 //-------------------------------------------------------------------------------------
@@ -558,8 +540,7 @@ int nbins = floor((max_tcorr)/dtau_plot);
 
 //--------- GET TWO BODY POTENTIALS: -----------------------------------------
 
-
-int NNRANGE, NTFRANGE;
+int NNRANGE;
 if(SNG)
 	{
 	//	NNRANGE = Llim-1;	// Lennard-Jones potential across the entire array.
@@ -603,38 +584,24 @@ else
 	exit(1);
 	}
 
-NTFRANGE=floor(float(NNRANGE)/2.);
-double VNTF[NTFRANGE+1];
-init_array( VNTF, NTFRANGE+1, 0.0 );
-VNTF_calc( VNTF,  NTFRANGE+1, E0);
+//--------------------------------SETUP INITIALIZATION PARAMETERS------------------
 
- //--coarse-grain the 2-body interaction potential into a smaller system.
-//--------------------------------SETUP INITIALIZATION PARAMETERS---------------------
-int     sizes_n_ranges[8];
+
+int     sizes_n_ranges[4];
 sizes_n_ranges[0] = footprint;
-	//-------sizes_n_ranges[1] = kHNG; // kHNG *is* 'footprint'
 sizes_n_ranges[1] = RMRANGE;
 sizes_n_ranges[2] = Llim;
 sizes_n_ranges[3] = NNRANGE;
-sizes_n_ranges[4] = NTFRANGE;
-
-sizes_n_ranges[5] = m;
-sizes_n_ranges[6] = F[0];
-sizes_n_ranges[7] = F[1];
-
 //--------------------------------------
-double  k_rates[5];
+double  k_rates[3];
 k_rates[0]=kS_N;
 k_rates[1]=kA_N;
-k_rates[2]=kS_TF;
-k_rates[3]=kA_TF;
-k_rates[4]=krm_val;
+k_rates[2]=krm_val;
 //--------------------------------------
 double times[4];
 times[0] = tf;
 times[1] = dt_obs;
-times[2] = dtau_plot;
-times[3] = t_trans;
+times[2] = t_trans;
 //--------------------------------------
 bool flags[7];
 flags[0] = HNG;
@@ -653,24 +620,13 @@ observations[3] = total_obs_filling;
 observations[4] = total_obs_eq;
 observations[5] = nbins;
 //--------------------------------------
-double energetics[5];
+double energetics[3];
 energetics[0] = muN;	//--- input the actual chemical potential 
 			//--- the constructor handles all aspects of coarse-graining.
-energetics[1] = muTF0;
-energetics[2] = muTF1;
 
-energetics[3] = E0;
-energetics[4] = BZalpha;//----the boltzmann alpha value that defines the ratio between addition and removal.
-
-//--------------------------------------
-
-double num_binds_per_simulation_F0 =0.0;
-double num_binds_per_simulation_F1 =0.0;
-
-double avg_F0_occupation = 0.0;
-double avg_F1_occupation = 0.0;
-
-// these will be taken each round from the simdat data variables of the same name
+energetics[1] = E0;
+energetics[2] = BZalpha;//----the boltzmann alpha value that defines the how the ratio between addition and removal.
+			//----is shared between the two (i.e. detailed balance)
 
 //---------------------------------------------------------------------------------------
 string BZ;
@@ -711,7 +667,6 @@ cout  << "\n bind_irrev    = "    << bind_irrev << endl ;
 
 *log  << "\n bind_irrev  = "       << bind_irrev; 
 *log  << "\n fixed_ref   = "       << fixed_ref;
-*log  << "\n TFs_allowed = "       << TFs_allowed;
 *log  << "\n debugging   = "       << debugging;
 *log  << "\n BZ    = "             << BZcond;
 *log  << "\n BZalpha = "           << BZalpha;
@@ -722,7 +677,6 @@ cout  << "\n bind_irrev    = "    << bind_irrev << endl ;
 *log  << "E0 = "         << E0      << ", footprint = "   << footprint      << endl ;
 *log  << "h0 = "         << h[0]    << ", h1= "   << h[1]   << ", h2= "   << h[2] << endl ;
 *log  << "muN0  = "       << muN    << endl ;
-*log  << "muTF0 = "       << muTF0  << endl ;
 *log  << "krm_b = "      << krm_b   << ", krm_val = "  << krm_val  << endl ;
 *log  << " with kA_N = " << kA_N    << endl ;
 *log  << " with kA_N = " << kA_N    << endl ;
@@ -734,22 +688,14 @@ cout  << "\n bind_irrev    = "    << bind_irrev << endl ;
 //-----------  SETUP KYMO FILES   ----------------------------
 
 ofstream * fkymo_outN;
-ofstream * fkymo_outTF; 
-
 
 if(should_plot_kymo)
 	{
-
 	fkymo_outN  = new ofstream;
-	fkymo_outTF = new ofstream;
 
 	clear_charray(cpath, charlength );
 	sprintf(cpath, "%skymograph_t_Npos.txt",pathout.c_str());
 	(*fkymo_outN).open(cpath);
-
-	clear_charray(cpath, charlength );
-	sprintf(cpath, "%skymograph_t_TFpos.txt",pathout.c_str());
-	(*fkymo_outTF).open(cpath);
 
 	}
 
@@ -760,7 +706,7 @@ for(i=0;i<numtrials;i++)
 	{
 	//-------setup the data structure------------------
 
-	GAdata * simdat = new GAdata(energetics, observations, k_rates, times, sizes_n_ranges, h,F, krm_b,  path, log, timestamps, flags);
+	GAdata * simdat = new GAdata(energetics, observations, k_rates, times, sizes_n_ranges, h, krm_b,  path, log, timestamps, flags);
 
 	//------- ask if we should start with some fixed initial configuration. ---------
 	if( set_fixed_initial )
@@ -791,13 +737,6 @@ for(i=0;i<numtrials;i++)
 		{
 		cout << "\nERROR -lost our +1 reference";
 		*log << "\nERROR -lost our +1 reference";
-		exit(1);
-		}
-
-		if( !TFs_allowed && (*simdat).TFnum > 0)
-		{
-		cout << "\nERROR -we got some TFs in here";
-		*log << "\nERROR -we got some TFs in here";
 		exit(1);
 		}
 
@@ -832,8 +771,8 @@ for(i=0;i<numtrials;i++)
 
 		if(R < M)
 			{
-			x=floor(float(R)/float(8));
-			Rtype = R-8*x;
+			x=floor(float(R)/float(reactions_per_site));
+			Rtype = R-reactions_per_site*x;
 
 			if((x==h[0]+h[1]) && ( (Rtype==0) || (Rtype==2) || (Rtype==3) ) && fixed_ref )
 				{
@@ -841,11 +780,11 @@ for(i=0;i<numtrials;i++)
 				goto reroll;
 				}
 
-			if(  (Rtype ==5 )   && !TFs_allowed  )
+			if(  Rtype >45 ) 
 				{
-		//		cout << "\n blocked a TF addition";
-		//		goto reroll;
-				*log << "\n ERROR: TF addition attempted -but TFs are not allowed -this is an error!\n";
+				*log << "\n ERROR: reaction type exceeds our limit of 4\n";
+				cout << "\n ERROR: reaction type exceeds our limit of 4\n";
+
 				(*log).close();
 				exit(1);
 				}
@@ -862,9 +801,8 @@ for(i=0;i<numtrials;i++)
 
 		if( (*simdat).printtime_kymo() && should_plot_kymo && i==0) // WE ONLY DO IT FOR THE FIRST RUN.
 		   {
-		    (*simdat).plot_snapshot_kymo( fkymo_outN , fkymo_outTF );
+		    (*simdat).plot_snapshot_kymo( fkymo_outN );
 		   }
-
 
 
 		//----------REDUNDANT ERROR CHECKING: -WE'RE CONFIDENT BY NOW -------------
@@ -890,7 +828,6 @@ for(i=0;i<numtrials;i++)
 			output2partcorr_eq[x] += (1.0/float(numtrials))*(*simdat).two_part_corr_eq[x];
 
 			OavN_eq[x]  += ((1.0/float(numtrials))*( (1/float(total_obs_eq))* float((*simdat).onepoint_histocc_N_eq[x])) );
-			OavTF_eq[x] += ((1.0/float(numtrials))*( (1/float(total_obs_eq))* float((*simdat).onepoint_histocc_TF_eq[x]))); 
 			}
 
 		//----------------
@@ -901,7 +838,6 @@ for(i=0;i<numtrials;i++)
 				output2partcorr_ti[t_index][x] += (1.0/float(numtrials))*(*simdat).two_part_corr_ti[t_index][x];
 
 				OavN_ti[t_index][x]  += (1.0/float(numtrials))*float( (*simdat).onepoint_histocc_N_ti[t_index][x] );
-				OavTF_ti[t_index][x] += (1.0/float(numtrials))*float( (*simdat).onepoint_histocc_TF_ti[t_index][x] );
 				}
 			}
 
@@ -946,27 +882,11 @@ for(i=0;i<numtrials;i++)
 
 //-------------------------DONE ALL THE TRIALS-----------------------
 
-//! -----this was for nucleosomes---- : calc_void_statistics(  void_means, void_stddevs, Ncheck, void_histogram, total_obs_filling, Llim , CGF, numtrials);
+// ! -----this was for nucleosomes---- : calc_void_statistics(  void_means, void_stddevs, Ncheck, void_histogram, total_obs_filling, Llim , CGF, numtrials);
 //! removed coarse-graining functionality 
 calc_void_statistics(  void_means, void_stddevs, Ncheck, void_histogram, total_obs_filling, Llim , 1.0, numtrials);
 
-	num_binds_per_simulation_F0 = 	num_binds_per_simulation_F0 /(double (numtrials) );
-	num_binds_per_simulation_F1 = 	num_binds_per_simulation_F1 /(double (numtrials) );
 
-	avg_F0_occupation = avg_F0_occupation / ( double (numtrials) );
-	avg_F1_occupation = avg_F1_occupation / ( double (numtrials) );
-
-//--------------------------------------------
-double avg_as=0.0;
-int num_samp=floor(Llim/3);
-int start = num_samp;
-
-for(i=0;i<num_samp;i++)
-	{
-	x=i+start;
-	avg_as+= (OavN_eq[x]/(double(num_samp)));	//----collect the central third population density average.
-	}
-//--------------------------------------------
 //======================  OUTPUT THE ENTROPY (as necessary)  ===============
 ofstream *fentropyout;
 
@@ -1108,7 +1028,6 @@ if(calculate_entropy)
 //======================   OUTPUT two-body potential =======================
 bool output_v2=true;
 ofstream *fVNNout;
-ofstream *fVNTFout;
 
 if(output_v2)
 	{
@@ -1130,17 +1049,6 @@ if(output_v2)
 	(*fVNNout).close();
 	delete fVNNout;
 
-
-	sprintf(cpath, "%svNTF%s_w-%d_E0-%.3f_krm_0.txt",pathout.c_str(), NGtype.c_str(), NTFRANGE, E0);
-	fVNTFout = new ofstream(cpath);
-	for(x=0; x<NTFRANGE; x++)
-		{
-		*fVNTFout << xcoarse[x] << " \t " << VNTF[x] << endl;
-		}
-	(*fVNTFout).close();
-
-
-	delete fVNTFout;
 	}
 //======================   OUTPUT FIXED REF AVERAGING   =======================
 // bool output_fixed_ave=false;
@@ -1153,12 +1061,12 @@ if(output_patterns)	//---"patterns" refers to both 1-point and 2-point functions
 	clear_charray(cpath, charlength );
 
 	//--------------------FIRST THE EQUILIBRIUM VALUE ------------------
-	sprintf(cpath, "%sFixed-occ-hist-eq_x_N_TF.txt",pathout.c_str() );
+	sprintf(cpath, "%sFixed-occ-eq_x_rho.txt",pathout.c_str() );
 	favgout = new ofstream(cpath);
 
 	for(x=0;x<Llim;x++)
 		{
-		*favgout << (x-(h[0] +h[1]))*CGF << " \t " << (OavN_eq[x])/CGF << " \t " << (OavTF_eq[x]/CGF) << endl;
+		*favgout << (x-(h[0] +h[1]))*CGF << " \t " << (OavN_eq[x])/CGF << " \t " << endl;
 		}
 	(*favgout).close();
 	delete favgout;
@@ -1179,22 +1087,6 @@ if(output_patterns)	//---"patterns" refers to both 1-point and 2-point functions
 	(*favgout).close();
 	delete favgout;
 		
-	//------now for the TF case------
-	clear_charray(cpath, charlength );
-	sprintf(cpath, "%sFixed-occ-hist-ti_x_TF.txt",pathout.c_str() );
-	favgout = new ofstream(cpath);
-
-	for(x=0;x<Llim;x++)
-		{
-		for( t_index=0;  t_index<total_obs_filling;  t_index++)
-			{
-			*favgout << (OavTF_ti[t_index][x]/CGF) << "\t";
-			}
-		*favgout << endl;
-		}
-	(*favgout).close();
-	delete favgout;
-	
 	//------------------------------------------------------------------
 
 	}
@@ -1262,7 +1154,8 @@ if(output_filling)
 		}
 	(*favgout).close();
 	delete favgout;
-}
+	}
+
 //======================   OUTPUT mean/std.dev STATISTICS  ======================
 bool output_meanstddevvtime=false;
 
@@ -1444,7 +1337,6 @@ for(t_index=0; t_index<total_obs_filling; t_index++)
 	delete [] output2partcorr_ti[t_index];
 
 	delete [] OavN_ti[t_index];
-	delete [] OavTF_ti[t_index];
 
 	}
 
@@ -1460,7 +1352,6 @@ if(should_plot_snapshots )
 if(should_plot_kymo)
 	{
 	(*fkymo_outN).close();
-	(*fkymo_outTF).close();
 	}
 
 //(*fout).close();
@@ -1469,18 +1360,11 @@ if(should_plot_kymo)
 //---------------    FINISH AND EXIT   -----------------------------------
 
 *log  << "\n measurement successfully completed with the following parameters: \n\n" ;
-
-*log  <<  "\n average num_binds_per_simulation_F0 = " << num_binds_per_simulation_F0 ;
-*log  <<  "\n average num_binds_per_simulation_F1 = " << num_binds_per_simulation_F1 << endl ;
-
-
-
 *log  << "\n numtrials = " << numtrials << endl ;
 (*log).close();
 delete log;
 
 cout << "\n\n program completed successfully.\n ";
-cout << " the asymptotic average of the central third of the system was: " << avg_as << endl;
 return 0;
 }
-
+                       

@@ -16,8 +16,9 @@
 
 using namespace std;
 
+const int reactions_per_site=4; //---- number of possible reactions at each site.
 
-const bool TFs_allowed     = false; 	//--are TFs allowed in this simulation?
+// const bool TFs_allowed     = false; 	//--are TFs allowed in this simulation?
 const bool debugging       = false; 	//-- are we just doing a dummy run for debugging purposes?
 
 const bool bind_irrev      = false;	// do particles bind irreversibly? if so, then k_off always = 0.
@@ -65,10 +66,6 @@ double * a_addN;	// delta-Energy of removal from system
 double * a_sNL;		// delta-Energy of sliding left one position
 double * a_sNR;		//	"	"	"	" right "	"
 
-double * a_removeTF;
-double * a_addTF;
-double * a_sTFL;			//delta-Energy of sliding left one position
-double * a_sTFR;			// "	"	"	" right "	"
 //---- ALL OF THE ABOVE POINTERS ARE JUST SET TO POINT TO MEMORY 
 //---- ALREADY ALLOCATED FOR THE Rx array BY THE GAdata CONSTRUCTOR THEY DO NOT NEED TO BE DELETED.
 //---- THESE POINTERS ARE NEVER ALLOCATED MEMORY IN THEIR OWN RIGHT.
@@ -77,11 +74,8 @@ double * a_sTFR;			// "	"	"	" right "	"
 double t_occ_TF;		// the TOTAL time that this site has been
 double t_occ_N;			// occupied by a TF, Nuc, respectively.
 
-double t_bind_TF;		// the time at which the TF/Nuc currently there
 double t_bind_N;		// binded
 
-queue<bindevent> event_list;
-// n.b. we eliminated an array of binding events to avoid confusion.
 
 };
 //***********************************************************************
@@ -148,19 +142,15 @@ bool boltzmann_on_addrem_intermed;
 
 double BZalpha;
 //-----this condition is now read in from file.
-int h0, h1, h2;
-int F0, F1;  // F0, F1 are now the locations of the two transcription factors directly. 
-			//--see figure in main program.
 
 double muN0;
 double *muNarray; //----the array of ALL values of the chemical potential.
-double muTF0, muTF1;
 int Llim;
 int M;
 int footprint;
 
 double *VNN;		//---effective VNN, after coarse-graining.
-double *VNTF;
+double *VNTF;		//----just set this to NULL
 
 double *xcoarse;
 
@@ -173,7 +163,8 @@ double N_remod; //-  number of pairs of nucleosomes that are adjacent, and
 		//-  close enough together to be remodelled.
 
 int NNRANGE;	//----the total range of the N-N interaction
-int NTFRANGE;	//----" 	"	"    N-TF interaction
+int NTFRANGE;	//-----set to zero
+
 
 int min_dist;	//---the minimum possible distance between adjacent particles. This is 1 for LNG and SNG, but 147 for HNG.
 
@@ -182,7 +173,7 @@ double CGF;
 double* tpoints_filling; //--- these are time points used to take the filling fraction through the transient period 
 			 //--- (should usually by logarithmically spaced.)
 double* tpoints_eq;	 //--- these are time points used to time-average equilibrium values (should usually be linearly spaced)
-
+int obs_count_filling;
 
 int flag;
 int counter; // records the iteration we're currently on.
@@ -190,7 +181,7 @@ int counter; // records the iteration we're currently on.
 int recentRx;
 
 //------------------------------ SETTING UP THE GAdata	INITIALLY: ------------------------
-GAdata(const double *energetics, const int* observations, const double* k_rates,const double* times,const int* sizes_n_ranges, const int *h, const int * F, bool krm_B, string path, ofstream * log_in , ofstream * timestamps_in, const bool * flags);	//-- the constructor
+GAdata(const double *energetics, const int* observations, const double* k_rates,const double* times,const int* sizes_n_ranges, const int *h, bool krm_B, string path, ofstream * log_in , ofstream * timestamps_in, const bool * flags);	//-- the constructor
 
 int set_fixed_initial_particles( const string path , gsl_rng * r); //-- possible function to implement some initially fixed particles.
 
@@ -199,7 +190,6 @@ int set_fixed_initial_particles( const string path , gsl_rng * r); //-- possible
 
 
 double muN(int x );
-double muTF(int x );
 
 int distance(const int a, const int b ); 	//---number of spaces away, not the number of intervening sites.
 int remod_cand(const int a, const int b);	// returns either 1 or 0, to denote whether or not this pair is a candidate for remodelling.	
@@ -213,10 +203,6 @@ double * Rx;	// 0-8 indicates the most recent reaction undertaken.
 // 1 - add_Nuc
 // 2 - slide_Nuc_left
 // 3 - slide_Nuc_right
-// 4 - remove_TF
-// 5 - add_TF
-// 6 - slide_TF_left
-// 7 - slide_TF_right
 
 site * pos;
 
@@ -224,8 +210,8 @@ int choose_reaction(double ranvar);
 
 double interaction_dEadd(int type, int x, int *neighbours   );
 double interaction_NN(int x);
-double interaction_NTF( int x);
-double interaction_TFTF( int x);
+double interaction_NTF(int x);
+double interaction_TFTF(int x);
 
 double dEsL(int type, int x, int * neighbours );
 double dEsR(int type, int x, int * neighbours );
@@ -237,11 +223,6 @@ int remove_Nuc( int x);
 int add_Nuc(  int x);
 int slide_Nuc_left( int x);
 int slide_Nuc_right( int x);
-
-int remove_TF(  int x);
-int add_TF(  int x);
-int slide_TF_left(  int x);
-int slide_TF_right( int x);
 
 int remodel(int R, gsl_rng * r);
 
@@ -268,7 +249,7 @@ bool already_warned;
 
 	bool should_observe_filling(double tau, int ** void_histogram, config_set_t * Z_all_t );
 	int  should_observe_equilibrium_voiddist( const double tau, int * void_histogram_equilibrium  ); 
-	int should_observe_patterns(double tau);
+	int  should_observe_patterns(double tau);
 
 	int grab_current_configuration( config_set_t & C_t);
 
@@ -286,50 +267,10 @@ bool already_warned;
 	int * onepoint_histocc_N_eq;
 	int ** onepoint_histocc_N_ti;
 
-	int * onepoint_histocc_TF_eq;
-	int ** onepoint_histocc_TF_ti;	//==== fixed-average histograms of N/TF positions.
 	//-------
-
-
 	int printout_states( ofstream *fout);
 	int printout_avgs( ofstream *fout);
 
-	//-------  TF time-averaged occupancy stuff   ----------
-	int bindeventnum_F0;
-        int bindeventnum_F1;
-
-        bindevent * event_array_F0;
-        bindevent * event_array_F1;
-
-        bool built_array_of_binding_events; //--have we or have we not constructed such an array from the stack?
-
-	int obs_count_filling;	// the current register of observation snapshot that have been taken.
-
-	double avg_F0_occupation;
-	double avg_F1_occupation;
-
-//-------DELETE THIS ----------
-	int observe_TF_occ_lag( void );
-	int get_site_tpoint_occ( const double t  , const int site);
-
-	double testing_avg_F0_occupation;
-	double testing_avg_F1_occupation;
-
-	double * testing_olap_y;
-	double dtau_obs;
-//------DOWN TO HERE ----------
-
-	int get_tarray_from_stack(void);
-
-//------DELETE THIS:
-	int get_delayed_tcorr(const double * time_corr_t, double *time_corr_y, double *raw_overlap, const int nbins);
-//-----DOWN TO HERE.
-
-	double get_overlap(const double  tau );
-	double get_frac_occupied(const double  t1, const double t2 , const int site);
-
-	double increment_beginning_at( const int i, const int site );
-	double increment_ending_at( const int i, const int site );
 
 //------variables to do with printing out the current density------
 int Nplots2makeshort, Nplots2makelong;
@@ -341,7 +282,7 @@ int nbins; // ---the number of discrete points we consider in time-lag correlati
 bool printtime_kymo(void);
 
 int  plot_snapshot(void);
-int  plot_snapshot_kymo( ofstream * foutN, ofstream * foutTF );
+int  plot_snapshot_kymo( ofstream * foutN);
 
 int  plotnum; //---the current plot number
 int  plotnum_kymo;
@@ -350,7 +291,6 @@ string path;
 //-------------------------------------------------------------
 
 int Nucnum, initialized_Nucnum;
-int TFnum;
 int partnum;	// total number of particles.
 
 double t;  	//--- the current time.
@@ -358,7 +298,6 @@ double tf; 	//--- the termination (final) time
 double t_trans; //--- the transient time before we start averaging on steady state.
 
 double ka_N,  ks_N;
-double ka_TF, ks_TF;
 //! int w, m; -----don't need w anymore!
 int m;
 double E0;
@@ -382,14 +321,12 @@ int reset( void);
 };
 //*********************************************************************************
 
-int VNTF_calc(double * potential,const int w, const double E0);
-
 double interact_NN(double * VNN, int w, int x);
-double interact_NTF(double * VNTF, int w, int x);
+double interact_NTF(double * VNTF, int w, int x); //--- should never get called in this version of the program, 
+						  //--- but still needs to be declared.
 
 double k_E(const double dE);
 //--------------------------------------------------------------
-
 int react(int x,int Rtype, GAdata &P);
 
 
