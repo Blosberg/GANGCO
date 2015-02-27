@@ -1470,6 +1470,7 @@ int Size_current_tvec = C_t.Z_t.size();	//---the number of unique configurations
 int x;
 int result;	//---returns the index of the matched configuration, or (for a new one) -1.
 
+int offset=0;   //---the offset from x=0 to the first particle observed. with this, the following string of separations is a complete configuration. 
 
 vector<int>  dists;
 
@@ -1478,8 +1479,10 @@ vector<int>  dists;
 configuration  Q_temp; 
 // Q_temp.N = Nucnum;
 Q_temp.pcount = 1;
+Qtemp.E=Nucnum*muN0;
 
 //---------------------------------------
+string gapstr;
 
 if(Nucnum == 0)
 	{
@@ -1492,18 +1495,25 @@ if(Nucnum == 0)
 else 
 	{
 
-	Q_temp.description= bren_itoa(Nucnum)  + string("_");
+	offset=pos[Llim-1].part_right;	
+	x=offset;
 
-	x=pos[Llim-1].part_right;
+
+	Q_temp.description= bren_itoa(Nucnum)  + string("_") + bren_itoa ( offset ) + string("_") ;
 
 	for(i=0;i<Nucnum;i++)	
 		{
+		if(LNG || SNG)//---@@@
+			{
+			Q_temp.E += VNN[distance(x,pos[x].part_right)-1];	
+			}
 		dists.push_back( distance(x,pos[x].part_right) );
-		x=pos[x].part_right;		
+		x=pos[x].part_right;	
+
 		}
 
 	//----after this, 'x' should end up back where it started, at the first particle position.
-	if( x != pos[Llim-1].part_right )	//---check that .
+	if( x != offset )	//---check that after running the loop it comes back to offset .
 		{
 		flag=1351244;
 		cout << "\n ERROR in grab_current_configuration, not aligned back with original x.";
@@ -1515,7 +1525,6 @@ else
 
 //---------------SET UP THE STRING-----------------------
 
-string gapstr;
 
 for (i=0; i< Nucnum ; i++) //---N.B. if N==0, then this will just automatically return 'true', as it should
 	{	  

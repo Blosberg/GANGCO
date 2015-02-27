@@ -892,7 +892,7 @@ ofstream *fentropyout;
 
 int ii=0;
 int size_of_Zt=0;
-double p=0.0;
+double pt=0.0,peq=0.0;
 double pnorm=0.0;
 
 
@@ -918,9 +918,23 @@ bool output_config_strings =true;
 ofstream configs_ti_t;	// ---- file stream to a t_index vs. tval for configstrings  
 int Size_current_tvec;
 
+gsl_matrix * T    = gsl_matrix_alloc (footprint+1, footprint+1); 
+gsl_matrix_set_zero(T);
+
+gsl_matrix * Product = gsl_matrix_alloc (footprint+1, footprint+1);
+gsl_matrix_set_zero(Product);
+
+double Zeq_exact=0.0;
+
 if(calculate_entropy)
 	{
 	//-------------------------------------------------------------------
+
+	assign_transfermatrix_elements(T, NGtype, footprint, VNN);@@@
+
+	bren_matrix_pow(T,Llim,Product)
+	
+	Zeq=gsl::matrix::trace(Product);
 
 	for(i=0;i<total_obs_filling;i++)
 		{ 
@@ -936,9 +950,11 @@ if(calculate_entropy)
 		//------------calculate the entropy for this time point----------
  		for(ii=0; ii<size_of_Zt; ii++)
 			{
-			p = double(Z_all_t[i].Z_t.at(ii).pcount) / pnorm;
+			pt  = double(Z_all_t[i].Z_t.at(ii).pcount) / pnorm;
+			peq = gsl_sf_exp(-Z_all_t[i].Z_t.at(ii).E) / Zeq_exact;
+
 			
-			Z_all_t[i].S -= p*gsl_sf_log(p);
+			Z_all_t[i].S -= (pt/peq)*gsl_sf_log(pt/peq);
 			}
 		//--------------average H for this time point  over all runs ------
 

@@ -28,14 +28,14 @@ const bool choose_carefully = true;	//do we sum over the rates again every time 
 const bool get_voiddist_equilibrium = true;
 
 
-const bool fixed_ref       = true;	//--Is the +1 nucleosome hard-coded at its position?
+const bool fixed_ref       = false;	//--Is the +1 nucleosome hard-coded at its position?
 					// BELOW: ARE THERE *OTHERS* that are also fixed in place?
 
 const bool set_fixed_initial = false;   // -- if true, then we set an initial set of particles 
 					//  to be fixed in place without the possibility of removal,
 					//  other particles coming after that bind reversibly.
 
-const bool calculate_entropy = false; 	// if true, then count configurations at every  
+const bool calculate_entropy = true; 	// if true, then count configurations at every  
 					// time point, for every iteration. 
 
 const double VLJ_rm = 1.125022076; 	// --- for Lennard-Jones potential, this is the distance of the potential 
@@ -97,6 +97,8 @@ string description;	//-----characterizes one full "state" of the system.
 			//---- eg 26-27-100 has those three voids in that order.
 
 int pcount;		//--- the actual number of observations of this configuration.
+
+double E;		//----Energy; used later to determine weight.
 
 //---------------------- THINGS WE DECIDED WE DON'T NEED ANYMORE -------------
 // float p;		//--- the total probability of this configuration.
