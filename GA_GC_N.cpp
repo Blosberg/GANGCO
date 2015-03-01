@@ -918,23 +918,35 @@ bool output_config_strings =true;
 ofstream configs_ti_t;	// ---- file stream to a t_index vs. tval for configstrings  
 int Size_current_tvec;
 
-gsl_matrix * T    = gsl_matrix_alloc (footprint+1, footprint+1); 
-gsl_matrix_set_zero(T);
+gsl_matrix * TM    = gsl_matrix_alloc (footprint+1, footprint+1); 
+gsl_matrix_set_zero(TM);
 
 gsl_matrix * Product = gsl_matrix_alloc (footprint+1, footprint+1);
 gsl_matrix_set_zero(Product);
 
-double Zeq_exact=0.0;
+double Zeq=0.0;
+double peq_sum[total_obs_filling];
+init_array(peq_sum,total_obs_filling,0.0);
+
+
 
 if(calculate_entropy)
 	{
 	//-------------------------------------------------------------------
 
-	assign_transfermatrix_elements(T, NGtype, footprint, VNN);@@@
+	assign_transfermatrix_elements(TM, NGtype, footprint, muN, VNN);
 
-	bren_matrix_pow(T,Llim,Product)
+//@@@@=----- delete
+// bren_print_gsl_matrix_to_stream( TM, cout);
+// cout << "\n that's the transfer matrix";	
+// exit(1);
+//-=---------------
+
+
+	bren_matrix_pow(TM,Llim,Product);
 	
-	Zeq=gsl::matrix::trace(Product);
+	Zeq = bren_get_matrix_trace(Product);
+
 
 	for(i=0;i<total_obs_filling;i++)
 		{ 
@@ -951,10 +963,11 @@ if(calculate_entropy)
  		for(ii=0; ii<size_of_Zt; ii++)
 			{
 			pt  = double(Z_all_t[i].Z_t.at(ii).pcount) / pnorm;
-			peq = gsl_sf_exp(-Z_all_t[i].Z_t.at(ii).E) / Zeq_exact;
+			peq = gsl_sf_exp(-Z_all_t[i].Z_t.at(ii).E) / Zeq;
 
 			
 			Z_all_t[i].S -= (pt/peq)*gsl_sf_log(pt/peq);
+			peq_sum[i]  += peq;
 			}
 		//--------------average H for this time point  over all runs ------
 
@@ -999,7 +1012,7 @@ if(calculate_entropy)
 
 	for(i=0;i<total_obs_filling;i++)
 		{ 
-		*fentropyout << Z_all_t[i].tval  << " \t " << (1.0/float(Llim))*Z_all_t[i].S << " \t " << (1.0/float(Llim))*Z_all_t[i].H << "\t" << (1.0/float(Llim))*Z_all_t[i].Htot << "\t" << (1.0/float(Llim))*Z_all_t[i].Nave << endl;
+		*fentropyout << Z_all_t[i].tval  << " \t " << (1.0/float(Llim))*Z_all_t[i].S << " \t " << (1.0/float(Llim))*Z_all_t[i].H << "\t" << (1.0/float(Llim))*Z_all_t[i].Htot << "\t" << (1.0/float(Llim))*Z_all_t[i].Nave <<  " \t " << peq_sum[i] << endl;
 		//----normalized by Llim now to imply energetic quantities PER LATTICE SITE.
 		}
 

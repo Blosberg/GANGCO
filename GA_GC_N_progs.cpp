@@ -1479,7 +1479,7 @@ vector<int>  dists;
 configuration  Q_temp; 
 // Q_temp.N = Nucnum;
 Q_temp.pcount = 1;
-Qtemp.E=Nucnum*muN0;
+Q_temp.E=-Nucnum*muN0;
 
 //---------------------------------------
 string gapstr;
@@ -1568,10 +1568,13 @@ if( Size_current_tvec==0 || !match_found)	//--- DIDN'T FIND A MATCH IN THE EXIST
 	
 	C_t.Z_t.resize(Size_current_tvec+1); //--- extend the size by one in order to add one new 
 					     //--- configuration to the partition func for this time.
-
+/*
 	C_t.Z_t[Size_current_tvec].pcount = 1;	//----- set the pcount of the new one that 
 						//----- just got added to p1
 	C_t.Z_t[Size_current_tvec].description = Q_temp.description;	
+*/
+
+	C_t.Z_t[Size_current_tvec] = Q_temp; //----- just copy the whole thing at once.
 
 	result = -1;	//----the '-1' signifies that this was a new configuration.
 	}

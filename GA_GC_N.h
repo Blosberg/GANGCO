@@ -340,3 +340,10 @@ double min(const double a, const double b);
 double max(const double a, const double b);
 
 
+//================ THERMODYNAMIC CALCULATION: PARTIAL ENTROPY======================
+int  assign_transfermatrix_elements(gsl_matrix *T, const string NGtype, const int a, const double mu, const double * VNN);
+
+int bren_matrix_pow(const gsl_matrix *T, const int n, gsl_matrix * output);
+double bren_get_matrix_trace(const gsl_matrix * T);
+int bren_print_gsl_matrix_to_stream(const gsl_matrix * M, ostream &out);
+
