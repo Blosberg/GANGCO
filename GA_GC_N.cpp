@@ -377,11 +377,28 @@ clear_charray(cpath, charlength );
 sprintf(cpath, "./rngSEED.in");
 ifstream fseedin(cpath);
 
-if(fseedin.fail())
+i=0;
+while( fseedin.fail() ) 
 	{
+
+	cout << "\n failed accessing input file " << i << "times.";	
+	*log << "\n failed accessing input file " << i << "times.";
+
+	i++;
+//	Sleep(1); // wait for a second to avoid race condition.
+	if( i >= 100)
+		{
+		break; // --- avoid an infinite loop.
+		}	
+	fseedin.open(cpath);	
+	}
+
+
+if( fseedin.fail() )
+	{
+	cout << "\n ERROR, can't access rngSEED file. exiting \n";
 	*log << "\n cannot find rngseed file... exiting.\n";
-	cout << "\n cannot find rngseed file... exiting.\n";
-	(*log).close();
+
 	exit(1);
 	}
 else
@@ -524,9 +541,9 @@ for(i=0;i<total_obs_filling;i++)
 	Z_all_t[i].tpoint_passed = false;
 	Z_all_t[i].Nave = 0.0;
 
-	Z_all_t[i].S    = 0.0;
-	Z_all_t[i].H    = 0.0;
-	Z_all_t[i].Htot = 0.0;
+	Z_all_t[i].Hrel  = 0.0;
+	Z_all_t[i].U     = 0.0;
+	Z_all_t[i].Utot  = 0.0;
 
 	//----always declare this so that there's only one version of "should_observe"
 	//----if calculate_entropy is false, then we just won't do anything with this.
@@ -966,17 +983,17 @@ if(calculate_entropy)
 			peq = gsl_sf_exp(-Z_all_t[i].Z_t.at(ii).E) / Zeq;
 
 			
-			Z_all_t[i].S -= (pt/peq)*gsl_sf_log(pt/peq);
-			peq_sum[i]  += peq;
+			Z_all_t[i].Hrel += pt*gsl_sf_log(pt/peq);
+			peq_sum[i]      += peq;
 			}
 		//--------------average H for this time point  over all runs ------
 
-		Z_all_t[i].H = (Z_all_t[i].H/float(numtrials)) ;
+		Z_all_t[i].U = (Z_all_t[i].U/float(numtrials)) ;
 
 		//----------now add Nave*mu to get Htot for this time point ------
 
 		Z_all_t[i].Nave = Z_all_t[i].Nave/float(numtrials);
-		Z_all_t[i].Htot = Z_all_t[i].H - Z_all_t[i].Nave*muN;
+		Z_all_t[i].Utot = Z_all_t[i].U - Z_all_t[i].Nave*muN;
 
 
 		//--------- NOW SAVE THE MOST COMMON N CONFIGURATIONS PER TIME POINT ------
@@ -1012,7 +1029,7 @@ if(calculate_entropy)
 
 	for(i=0;i<total_obs_filling;i++)
 		{ 
-		*fentropyout << Z_all_t[i].tval  << " \t " << (1.0/float(Llim))*Z_all_t[i].S << " \t " << (1.0/float(Llim))*Z_all_t[i].H << "\t" << (1.0/float(Llim))*Z_all_t[i].Htot << "\t" << (1.0/float(Llim))*Z_all_t[i].Nave <<  " \t " << peq_sum[i] << endl;
+		*fentropyout << Z_all_t[i].tval  << " \t " << (1.0/float(Llim))*Z_all_t[i].Hrel << " \t " << (1.0/float(Llim))*Z_all_t[i].U << "\t" << (1.0/float(Llim))*Z_all_t[i].Utot << "\t" << (1.0/float(Llim))*Z_all_t[i].Nave <<  " \t " << peq_sum[i] << endl;
 		//----normalized by Llim now to imply energetic quantities PER LATTICE SITE.
 		}
 
@@ -1323,15 +1340,19 @@ if(output_overshoot_phase_diag)
 
 seed=gsl_rng_get(r);
 
-/*------- DONT REPLANT SEED FOR BATCH JOBS--------
-clear_charray(cpath, charlength );
-sprintf(cpath, "%srngSEED.in",path.c_str());
-ofstream fseedout(cpath);
+//------- REPLANT SEED FOR BATCH JOBS only once (i.e. the first job)--------
 
- fseedout.precision(18);
- fseedout << seed;
- fseedout.close();
-----------------------------------*/
+if(TASKID==1)
+	{
+	clear_charray(cpath, charlength );
+	sprintf(cpath, "%srngSEED.in",path.c_str());
+	ofstream fseedout(cpath);
+
+	fseedout.precision(18);
+	fseedout << seed << endl;
+	fseedout.close();
+	}
+//----------------------------------*/
 
 //----------------- CLEAR UP ALLOCATED MEMORY -------------------------------
 

@@ -1584,7 +1584,7 @@ x=pos[Llim-1].part_right;
 
 for(i=0;i<Nucnum;i++)	
 	{
-	C_t.H += interaction_NN( distance(x,pos[x].part_right)) ;
+	C_t.U += interaction_NN( distance(x,pos[x].part_right)) ;
 	x=pos[x].part_right;		
 	}
 

@@ -118,11 +118,11 @@ double tval;
 bool   tpoint_passed;  // --- array[i] indicates whether 'i'th t-point has been considered yet.
 float    Nave;
 
-double   S;		// entropy
+double   Hrel;		// entropy (relative ---defined in the text pg. 133 Eq. 5.6)
 
-double   H;		// here is JUST the neighbour interaction, i.e. 
+double   U;		// here is JUST the neighbour interaction, i.e. 
 			// sum of 'v' between neighbours.
-double Htot;		// here is the above H, PLUS, <N> times mu
+double Utot;		// here is the above U, PLUS, <N> times mu
 
 vector < configuration >   Z_t;	//----Z_t is always just the set of configurations.
 
