@@ -120,6 +120,8 @@ float    Nave;
 
 double   Hrel;		// entropy (relative ---defined in the text pg. 133 Eq. 5.6)
 
+double   Snonrel;	// non-relative entropy,... just p log(p) from the old def.
+
 double   U;		// here is JUST the neighbour interaction, i.e. 
 			// sum of 'v' between neighbours.
 double Utot;		// here is the above U, PLUS, <N> times mu

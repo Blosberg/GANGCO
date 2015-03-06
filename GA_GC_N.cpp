@@ -214,11 +214,11 @@ if( datin.fail() )
 	}
 
 datin  >> kS_N  >> kA_N;
-datin  >> Llim  ;  				//---Llim in LATTICE SITES, (after CG-ing), not bp.
-datin  >> t0   >> tf >>  t_trans >> dt_obs ; 
-						//--Llim - system size; dt_obs is now just the time we _start_ looking.
+datin  >> Llim  ;  				//--- Llim in LATTICE SITES, (after CG-ing), not bp.
+datin  >> t0   >> tf >>  t_trans >> dt_obs ;  
+						//--- Llim - system size; t_trans is the time we _start_ looking at intervals dt_obs.
 
-datin  >> footprint ;	//----in the HNG case, we just take 'w' to mean 'k'
+datin  >> footprint ;	//--- in the HNG case, we just take 'w' to mean 'k'
 
 datin  >> krm_b                 >> krm_val;
 datin  >> should_plot_snapshots >> Nplots2makeshort  >> Nplots2makelong;
@@ -226,8 +226,8 @@ datin  >> should_plot_kymo      >> Nplots2make_kymo;
 datin  >> BZcond                >> BZalpha;
 
 datin  >> output_folder;
-datin  >> paritycheck;  //---this number is always 8888888 in the input file. 
-// If it gets read as something different then somethings wrong with the I/O formatting.
+datin  >> paritycheck;  //--- this number is always 88885888 in the input file. 
+			// If it gets read as something different then somethings wrong with the I/O formatting.
 
 datin  >> numtrials;
 datin.close();
@@ -541,6 +541,7 @@ for(i=0;i<total_obs_filling;i++)
 	Z_all_t[i].tpoint_passed = false;
 	Z_all_t[i].Nave = 0.0;
 
+	Z_all_t[i].Snonrel  = 0.0;
 	Z_all_t[i].Hrel  = 0.0;
 	Z_all_t[i].U     = 0.0;
 	Z_all_t[i].Utot  = 0.0;
@@ -873,7 +874,7 @@ for(i=0;i<numtrials;i++)
       }
 
 
-    if( floor(numtrials/(i+1)) <= 100 && i%(int(0.1*numtrials)) == 0)
+    if( (0.1*numtrials > 1.0) && (floor(numtrials/(i+1)) <= 100 && i%(int(0.1*numtrials)) == 0) )
 	{
 	*log << "\n at the end of run " << i << ", there were " << (*simdat).Nucnum << " particles in the system\n";
 
@@ -964,6 +965,12 @@ if(calculate_entropy)
 	
 	Zeq = bren_get_matrix_trace(Product);
 
+	if(std::isinf(Zeq))
+		{
+		cout << "\n ERROR: you're trying to calculate the full partition function of a system that's too large. Exiting.\n";
+		*log << "\n ERROR: you're trying to calculate the full partition function of a system that's too large. Exiting.\n";
+		exit(1);
+		}
 
 	for(i=0;i<total_obs_filling;i++)
 		{ 
@@ -983,7 +990,9 @@ if(calculate_entropy)
 			peq = gsl_sf_exp(-Z_all_t[i].Z_t.at(ii).E) / Zeq;
 
 			
-			Z_all_t[i].Hrel += pt*gsl_sf_log(pt/peq);
+			Z_all_t[i].Hrel    += pt*gsl_sf_log(pt/peq);
+			Z_all_t[i].Snonrel += pt*gsl_sf_log(pt);
+
 			peq_sum[i]      += peq;
 			}
 		//--------------average H for this time point  over all runs ------
@@ -1024,12 +1033,12 @@ if(calculate_entropy)
 
 	clear_charray(cpath, charlength );
 
-	sprintf(cpath, "%sthermoquantities_t_S_H_Htot_Nave.txt",pathout.c_str());
+	sprintf(cpath, "%sthermoquantities_t_Snonrel_Hrel_Htot_Nave.txt",pathout.c_str());
 	fentropyout = new ofstream(cpath);
 
 	for(i=0;i<total_obs_filling;i++)
 		{ 
-		*fentropyout << Z_all_t[i].tval  << " \t " << (1.0/float(Llim))*Z_all_t[i].Hrel << " \t " << (1.0/float(Llim))*Z_all_t[i].U << "\t" << (1.0/float(Llim))*Z_all_t[i].Utot << "\t" << (1.0/float(Llim))*Z_all_t[i].Nave <<  " \t " << peq_sum[i] << endl;
+		*fentropyout << Z_all_t[i].tval << " \t " << (1.0/float(Llim))*Z_all_t[i].Snonrel  << " \t " << (1.0/float(Llim))*Z_all_t[i].Hrel << " \t " << (1.0/float(Llim))*Z_all_t[i].U << "\t" << (1.0/float(Llim))*Z_all_t[i].Utot << "\t" << (1.0/float(Llim))*Z_all_t[i].Nave <<  " \t " << peq_sum[i] << endl;
 		//----normalized by Llim now to imply energetic quantities PER LATTICE SITE.
 		}
 
