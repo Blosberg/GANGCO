@@ -381,8 +381,8 @@ i=0;
 while( fseedin.fail() ) 
 	{
 
-	cout << "\n failed accessing input file " << i << "times.";	
-	*log << "\n failed accessing input file " << i << "times.";
+	cout << "\n failed accessing rngSEED.in file " << i << "times.";	
+	*log << "\n failed accessing rngSEED.in file " << i << "times.";
 
 	i++;
 //	Sleep(1); // wait for a second to avoid race condition.
