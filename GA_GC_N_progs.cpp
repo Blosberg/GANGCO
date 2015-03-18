@@ -2261,7 +2261,7 @@ for(x=0;x<Llim;x++)
    else if( gsl_sf_log(fabs(check_a_addN/(*pos[x].a_addN))) > 0.00001 ) 
 	{ 
 	flag = 7102; 
-	*log << "\n rate discrepancy in a1 at position x=" << x << ", autocorrecting.\n";
+	*log << "\n rate discrepancy in a1 at position x=" << x << ", exiting.\n";
 	*pos[x].a_addN = check_a_addN;
 	process_error(x);
 	}
@@ -2277,7 +2277,7 @@ for(x=0;x<Llim;x++)
    else if( gsl_sf_log(fabs(check_a_sNL/(*pos[x].a_sNL))) > 0.00001 ) 
 	{ 
 	flag = 7103; 
-	*log << "\n rate discrepancy in a2 at position x=" << x << ", autocorrecting.\n";
+	*log << "\n rate discrepancy in a2 at position x=" << x << ", exiting.\n";
 	*pos[x].a_sNL = check_a_sNL;
 	process_error(x);
 	}
@@ -2293,7 +2293,7 @@ for(x=0;x<Llim;x++)
    else if( gsl_sf_log(fabs(check_a_sNR/(*pos[x].a_sNR))) > 0.00001 ) 
 	{ 
 	flag = 7104; 
-	*log << "\n rate discrepancy in a3 at position x=" << x << ", autocorrecting.\n";
+	*log << "\n rate discrepancy in a3 at position x=" << x << ", exiting.\n";
 	*pos[x].a_sNR = check_a_sNR;
 	process_error(x);
 	}
