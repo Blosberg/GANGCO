@@ -1349,6 +1349,7 @@ int j;
 			}
 
 		get_filling_frac( );
+		increment_void_histogram(void_histogram);
 		
 		if (calculate_entropy)
 			{
@@ -2194,13 +2195,13 @@ for(x=0;x<Llim;x++)
 			}
 
 		
-		if(pos[left(x)].state ==0 && ks_N > 0.0)
-			check_a_sNL = ks_N*k_E( dEsL(1, x, neighbours ) );
+		if(pos[left(x)].state == 0 && ks_N > 0.0)
+			check_a_sNL = ks_N * k_E( max( dEsL(1, x, neighbours), 0.0) );
 		else
 			check_a_sNL = 0.0;
 
-		if(pos[right(x)].state ==0  && ks_N > 0.0)
-			check_a_sNR = ks_N*k_E( dEsR(1, x, neighbours ) );
+		if(pos[right(x)].state == 0  && ks_N > 0.0)
+			check_a_sNR = ks_N * k_E( max( dEsR(1, x, neighbours), 0.0) );
 		else
 			check_a_sNR = 0.0;
 
