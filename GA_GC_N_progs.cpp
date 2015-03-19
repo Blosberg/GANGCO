@@ -450,36 +450,33 @@ bool remod=false;
 int result;
 
 //----------------ERROR CHECK --- DELETE THIS ---
+static int choose_carefully_counter = 0;
+if (choose_carefully) {
+	if (choose_carefully_counter > choose_carefully_checking_interval) {
+		for (i=0; i< M ;i++)
+			an+=Rx[i]; 
+		an += 2.0 * N_remod * krm_val;
 
-if( choose_carefully)
-	{
-	for(i=0; i< M ;i++)
-		{
-		an+=Rx[i]; 
-		}
-	an += 2.0 * N_remod * krm_val;
+		double local_errtest = (an-a0)/a0;
 
-	double local_errtest = (an-a0)/a0;
-
-
-	if(fabs(local_errtest) > 1E-10)
-		{
-		if ( !already_warned)
-			{
-			// *log << "\n WARNING, reaction rate sums don't agree\n recalibrating \n";
-			// cout << "\n WARNING, reaction rate sums don't agree\n recalibrating at counter = " << counter << endl;
-			already_warned = true;
+		if (fabs(local_errtest) > 1E-10) {
+			if (!already_warned) {
+				// *log << "\n WARNING, reaction rate sums don't agree\n recalibrating \n";
+				// cout << "\n WARNING, reaction rate sums don't agree\n recalibrating at counter = " << counter << endl;
+				already_warned = true;
 			}
 	
-		if(fabs(local_errtest) > 1E-7)
-			{
-			cout << "\n WARNING: significant discrepency discovered. \n";
-			*log << "\n WARNING: significant discrepency discovered. \n";
-//			exit(1);
+			if(fabs(local_errtest) > 1E-7) {
+				cout << "\n WARNING: significant discrepency discovered. \n";
+				*log << "\n WARNING: significant discrepency discovered. \n";
+				// exit(1);
 			}
-		check_rates();
+			check_rates();
 		}
-	}
+		choose_carefully_counter = 0;
+	} 
+	choose_carefully_counter++;
+}
 an=0.0;
 //-------------------------------DOWN TO HERE ----
 

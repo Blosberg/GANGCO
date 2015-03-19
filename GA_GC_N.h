@@ -23,7 +23,8 @@ const bool debugging = false; 	//-- are we just doing a dummy run for debugging 
 
 const bool bind_irrev = false;	// do particles bind irreversibly? if so, then k_off always = 0.
 
-const bool choose_carefully = true;	//do we sum over the rates again every time to check the an/a0 ratio?
+const bool choose_carefully = true;	// do we sum over the rates again every time to check the an/a0 ratio?
+const int choose_carefully_checking_interval = 100; // choose 100 for a negligible performance loss
 
 const bool get_voiddist_equilibrium = true;
 
@@ -35,7 +36,7 @@ const bool set_fixed_initial = false;   // -- if true, then we set an initial se
 					//  to be fixed in place without the possibility of removal,
 					//  other particles coming after that bind reversibly.
 
-const bool calculate_entropy = true; 	// if true, then count configurations at every  
+const bool calculate_entropy = false; 	// if true, then count configurations at every
 					// time point, for every iteration. 
 
 const double VLJ_rm = 1.125022076; 	// --- for Lennard-Jones potential, this is the distance of the potential 
