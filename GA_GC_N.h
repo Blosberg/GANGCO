@@ -24,7 +24,7 @@ const bool debugging = false; 	//-- are we just doing a dummy run for debugging 
 const bool bind_irrev = false;	// do particles bind irreversibly? if so, then k_off always = 0.
 
 const bool choose_carefully = true;	// do we sum over the rates again every time to check the an/a0 ratio?
-const int choose_carefully_checking_interval = 100; // choose 100 for a negligible performance loss
+const int choose_carefully_checking_interval = 10; // should still be small compared to the number of events in one realisation
 
 const bool get_voiddist_equilibrium = true;
 

@@ -452,7 +452,7 @@ int result;
 //----------------ERROR CHECK --- DELETE THIS ---
 static int choose_carefully_counter = 0;
 if (choose_carefully) {
-	if (choose_carefully_counter > choose_carefully_checking_interval) {
+	if (choose_carefully_counter >= choose_carefully_checking_interval) {
 		for (i=0; i< M ;i++)
 			an+=Rx[i]; 
 		an += 2.0 * N_remod * krm_val;
