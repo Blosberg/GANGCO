@@ -2,7 +2,7 @@ Here is a repository of the necessary files to run the simulation of interacting
 
 A vido illustration of one such simulation is provided in the gif below; here we see red, triangular particles representing nucleosomes, and green squares, representing (smaller) transcription factors adsorbing on simulated promoter region with a (simplified) realistic energetic binding landscape. 
 
-![](https://github.com/Blosberg/GA_GC/blob/master/GA_GC_movie_test2.gif) 
+![](GA_GC_movie.gif) 
 
 As such, nucleosomes are inhibited from binding in the NFR (100-200), and preferentially admitted to binding in the +1 regioni ( quasi-specifically bound near x~300), while TFs are preferentially bound in two arbitrarily chosen locations. Statistical positioning thereafter produces the familiar oscillatory pattern. A histogram of the time spent is shown below this region, while time progresses on a logarithmic scale.
 

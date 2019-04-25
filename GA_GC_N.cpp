@@ -1033,7 +1033,7 @@ if(calculate_entropy)
 
 	clear_charray(cpath, charlength );
 
-	sprintf(cpath, "%sthermoquantities_t_Snonrel_Hrel_Htot_Nave.txt",pathout.c_str());
+	sprintf(cpath, "%sthermoquantities_t_Snonrel_Hrel_U_Utot_Nave_sumP.txt",pathout.c_str());
 	fentropyout = new ofstream(cpath);
 
 	for(i=0;i<total_obs_filling;i++)
