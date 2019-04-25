@@ -1,4 +1,4 @@
-Here is a repository of the necessary files to run the simulation of interacting 1-D particles, as implemented in my publications, using the Gillepsie Algorithm. 
+Here is a repository of the necessary files to run the simulation of interacting 1-D particles, as implemented in my publications, using the Gillepsie Algorithm. For the deterministic mean-field equations using ODE time evolution, please see the accompanying repository: https://github.com/Blosberg/meanfield_void_numerics
 
 A vido illustration of one such simulation is provided in the gif below; here we see red, triangular particles representing nucleosomes, and green squares, representing (smaller) transcription factors adsorbing on simulated promoter region with a (simplified) realistic energetic binding landscape. 
 
