@@ -34,3 +34,4 @@ I've tried to add documentation here, but can't promise it will be perfectly "us
 
 Once the run is complete, a subdirectory using a name from the input file, and the input parameters will be created with various output results:
 In particular, the "filling.." file shows density vs. time -- I recommend you plot time on a logarithmic scale.
+Various other plots describe the profiles of gap-distribution between particles at various time points; the KL entropy; the 2-particle correlation between sizes of neighbouring gaps, and the overall frequency of occupation. For more details please get in touch.
