@@ -15,10 +15,10 @@
 *************************************************************************************/
 
 
-#include <fstream>   
+#include <fstream>
 #include <math.h>
-#include <iostream>  
-#include <iomanip>  
+#include <iostream>
+#include <iomanip>
 #include <sstream>
 
 #include <stdlib.h>
@@ -42,7 +42,7 @@ double const kB   = 1.38065E-23;  // in units of J/k
 
 
 using namespace std;
-const int Np10 = 10; 		// Resolution of time-samples taken. this is probably high enough resolution on the log10 scale. 
+const int Np10 = 10; 		// Resolution of time-samples taken. this is probably high enough resolution on the log10 scale.
 				// if Np10 = 10, then this implies that we take ten data points for each base-ten time increment
 
 const int nsample = 30; 	//----the minimum number of binding events we want to sample over for valid statistics.
@@ -50,12 +50,12 @@ const int charlength =400;	//----the length of the string kept in memory for fil
 
 int VNN_SNG_calc_smallp(double * potential, const int NNRANGE, const int a, const double E0);
 //---the SNG func has an extra input parameter for the LJ potential.
-int VNN_LNG_calc_smallp(double * potential, const int a, const double E0); 
+int VNN_LNG_calc_smallp(double * potential, const int a, const double E0);
 //---generate potential for the "L"inear potential for small particles.
 
 int space_tpoints_logarithmic(const double t0, const double tf, const int Np10, const int nbins, double * tx);
 
-bool should_observe_equilibrium_voiddist( const GAdata * P, const double tau, int ** void_histogram_equilibrium  ); 
+bool should_observe_equilibrium_voiddist( const GAdata * P, const double tau, int ** void_histogram_equilibrium  );
 //--- tests whether it is the right time to increment the void equilibrium distribution.
 
 int calc_void_statistics( double * void_means, double * void_stddevs, double * rhocheck, int const* const * const void_histogram, const int total_obs_filling, const int Llim , const double CGF,  const int numtrials);
@@ -63,13 +63,13 @@ int calc_void_statistics( double * void_means, double * void_stddevs, double * r
 int pick_index_from_rand_norm_dist( double rand01, double * distr, int L );
 
 int get_first_N_pvals_from_config_list( const vector < configuration >   Z_t, float * target, const int N);
-// ---order the configurations along 'p', and then put the first N values of that 
+// ---order the configurations along 'p', and then put the first N values of that
 // ---ordered list into the target array
 //******************************************************************
 
 int main(int argc, char *argv[])
 {
-int i,j,x,n, t_index;    
+int i,j,x,n, t_index;
 unsigned long int seed;	// --- random number generator seed.
 int Llim;	// --- the length of the strand.
 
@@ -129,7 +129,7 @@ if( (NGtype!="SNG" && NGtype!="LNG") && (NGtype!="HNG") )
 
 if (  ( (NGtype=="SNG"  || NGtype=="LNG" ) && argc != 5) || (NGtype=="HNG" && argc !=4)  )
 	{
-	
+
 	command_line_garbage:
 	cout << "\n error: unexpected number of input arguments; argc = " << argc << " \n and they were : ";
 	for (j=1;j<argc;j++)
@@ -142,7 +142,7 @@ if (  ( (NGtype=="SNG"  || NGtype=="LNG" ) && argc != 5) || (NGtype=="HNG" && ar
 
 TASKID      = atoi(argv[2]);
 muN_input   = atof(argv[3]); //----this should be input in "per footprint" convention; scaled to lattice site within the code.
- 
+
 
 if( (NGtype=="SNG"  || NGtype=="LNG" ) )
 	{
@@ -164,7 +164,7 @@ else if(NGtype=="LNG")
 	}
 else
 	{
-	cout << "\n ERROR: ambiguous NG type. exiting. \n"; 
+	cout << "\n ERROR: ambiguous NG type. exiting. \n";
 	exit(1);
 	}
 
@@ -193,19 +193,19 @@ ifstream datin;
 datin.open(cpath);
 
 i=0;
-while( datin.fail() ) 
+while( datin.fail() )
 	{
 
-	cout << "\n failed accessing input file " << i << "times.";	
+	cout << "\n failed accessing input file " << i << "times.";
 
 	i++;
 //	sleep(1); // wait for a second to avoid race condition.
 	if( i >= 100)
 		{
 		break; // --- avoid an infinite loop.
-		}	
+		}
 	datin.open(cpath);
-	
+
 	}
 if( datin.fail() )
 	{
@@ -215,7 +215,7 @@ if( datin.fail() )
 
 datin  >> kS_N  >> kA_N;
 datin  >> Llim  ;  				//--- Llim in LATTICE SITES, (after CG-ing), not bp.
-datin  >> t0   >> tf >>  t_trans >> dt_obs ;  
+datin  >> t0   >> tf >>  t_trans >> dt_obs ;
 						//--- Llim - system size; t_trans is the time we _start_ looking at intervals dt_obs.
 
 datin  >> footprint ;	//--- in the HNG case, we just take 'w' to mean 'k'
@@ -226,7 +226,7 @@ datin  >> should_plot_kymo      >> Nplots2make_kymo;
 datin  >> BZcond                >> BZalpha;
 
 datin  >> output_folder;
-datin  >> paritycheck;  //--- this number is always 88885888 in the input file. 
+datin  >> paritycheck;  //--- this number is always 88885888 in the input file.
 			// If it gets read as something different then somethings wrong with the I/O formatting.
 
 datin  >> numtrials;
@@ -250,7 +250,7 @@ if( paritycheck != 88885888 )
 
 bool boltzmann_on_uphill          = false;
 bool boltzmann_on_add             = false;
-bool boltzmann_on_removal         = false; 
+bool boltzmann_on_removal         = false;
 bool boltzmann_on_addrem_intermed = false; //-----this condition is now read in from file.
 
 
@@ -299,9 +299,9 @@ double ltf;	//---log of the final time. This is just a dummy temp variable.
 
 if(boltzmann_on_removal)
 	{
-	if (TASKID == 2)  
+	if (TASKID == 2)
 		{tf=0.0008;}
-	else if (TASKID == 4)  
+	else if (TASKID == 4)
 		{tf=0.08;}
 	else if( TASKID == 7 )
 		{tf=0.8;}
@@ -311,9 +311,9 @@ else if(boltzmann_on_addrem_intermed)
 
 	tu=tf;	//----upperbound fixed as per addition rate.
 
-	if (TASKID == 2)  
+	if (TASKID == 2)
 		{tl=0.0008;}
-	else if (TASKID == 4)  
+	else if (TASKID == 4)
 		{tl=0.08;}
 	else if( TASKID == 7 )
 		{tl=0.8;}
@@ -322,7 +322,7 @@ else if(boltzmann_on_addrem_intermed)
 	tf  = gsl_sf_exp(ltf);
 	cout << "\n With intermediate Boltzmann condition alpha = " << BZalpha << ", tf is set to " << tf << endl;
 
-	} 
+	}
 	//----else if boltzmann_on_add, then just leave tf as is -don't change anything.
 
 **************************************************************************************************************************/
@@ -339,6 +339,7 @@ sprintf(cpath, "./%s_muN-%.2f_E0-%.2f_perfp_k-%d/", output_folder.c_str(), muN+g
 
 
 pathout = cpath;
+int err_check;
 
 if ( DirectoryExists( pathout.c_str()  ) )
 	{
@@ -350,7 +351,12 @@ else
 	clear_charray(cpath, charlength );
 
 	sprintf(cpath, "mkdir \"./%s\"",pathout.c_str());
-	system(cpath);
+	err_check = system(cpath);
+	if ( err_check  )
+	     {
+             printf("Error creating directory %s \n", pathout.c_str() );
+             exit(1);
+	     }
 	}
 
 clear_charray(cpath, charlength );
@@ -363,7 +369,7 @@ ofstream *log = new ofstream(cpath, std::ofstream::out);
 
 
 
-ofstream * timestamps; 
+ofstream * timestamps;
 if(should_plot_snapshots )
 	{
 	clear_charray(cpath, charlength );
@@ -378,10 +384,10 @@ sprintf(cpath, "./rngSEED.in");
 ifstream fseedin(cpath);
 
 i=0;
-while( fseedin.fail() ) 
+while( fseedin.fail() )
 	{
 
-	cout << "\n failed accessing rngSEED.in file " << i << "times.";	
+	cout << "\n failed accessing rngSEED.in file " << i << "times.";
 	*log << "\n failed accessing rngSEED.in file " << i << "times.";
 
 	i++;
@@ -389,8 +395,8 @@ while( fseedin.fail() )
 	if( i >= 100)
 		{
 		break; // --- avoid an infinite loop.
-		}	
-	fseedin.open(cpath);	
+		}
+	fseedin.open(cpath);
 	}
 
 
@@ -413,13 +419,13 @@ seed=(seed/TASKID);
 cout << "new seed      = " << seed    << endl;
 
 gsl_rng_env_setup();
-      
+
 T = gsl_rng_default;
 r = gsl_rng_alloc (T);
 
 gsl_rng_set(r,seed);
 
-r1=gsl_rng_uniform(r); 
+r1=gsl_rng_uniform(r);
 r2=gsl_rng_uniform(r);
 
 //------------------------- ASSIGN VALUES FOR THE REACTION ARRAY -----------------------
@@ -454,9 +460,9 @@ else
 	{
 	total_obs_eq=0;
 	}
-	
-	
-	
+
+
+
 int    * void_histogram_equilibrium = NULL;
 
 if (get_voiddist_equilibrium)
@@ -513,13 +519,13 @@ config_set_t Z_all_t[total_obs_filling]; //--- an array of size for the number o
 double *  void_means      = new double[total_obs_filling];
 double *  void_stddevs    = new double[total_obs_filling];
 double *  Ncheck          = new double[total_obs_filling];
-double *  fillingfrac 	  = new double[total_obs_filling]; 	
-							//--- this is the _TOTAL_ filling frac array. 
-							//--- The one stored in the simdat struct is 
-							//--- just for a single run, and gets 
+double *  fillingfrac 	  = new double[total_obs_filling];
+							//--- this is the _TOTAL_ filling frac array.
+							//--- The one stored in the simdat struct is
+							//--- just for a single run, and gets
 							//--- overwritten each time.
 
-// 2-D array for the histogram of void sizes at the various time points. 
+// 2-D array for the histogram of void sizes at the various time points.
 // ---Now allocate memory:
 for(i=0;i<total_obs_filling;i++)
 	{
@@ -627,7 +633,7 @@ flags[1] = SNG;
 flags[2] = LNG;
 flags[3] = boltzmann_on_uphill ;
 flags[4] = boltzmann_on_add    ;
-flags[5] = boltzmann_on_removal; 
+flags[5] = boltzmann_on_removal;
 flags[6] = boltzmann_on_addrem_intermed; //-----this condition is now read in from file.
 //--------------------------------------
 int observations[6];
@@ -639,7 +645,7 @@ observations[4] = total_obs_eq;
 observations[5] = nbins;
 //--------------------------------------
 double energetics[3];
-energetics[0] = muN;	//--- input the actual chemical potential 
+energetics[0] = muN;	//--- input the actual chemical potential
 			//--- the constructor handles all aspects of coarse-graining.
 
 energetics[1] = E0;
@@ -648,7 +654,7 @@ energetics[2] = BZalpha;//----the boltzmann alpha value that defines the how the
 
 //---------------------------------------------------------------------------------------
 string BZ;
-if( ( int(boltzmann_on_add)+int(boltzmann_on_removal) + int(boltzmann_on_uphill) + int(boltzmann_on_addrem_intermed) ) != 1)  
+if( ( int(boltzmann_on_add)+int(boltzmann_on_removal) + int(boltzmann_on_uphill) + int(boltzmann_on_addrem_intermed) ) != 1)
 	{
 	cout << "\n ERROR: the boltzmann conditions are not unique and/or sufficient.\n";
 	*log << "\n ERROR: the boltzmann conditions are not unique and/or sufficient.\n"; 	  (*log).close();
@@ -671,7 +677,7 @@ else if ( boltzmann_on_addrem_intermed )
 	{
 	BZ="addrem_intermed";
 	}
-else 
+else
 	{
 	cout << "\n not sure what the BZ condition is. Exiting. \n";
 	*log << "\n not sure what the BZ condition is. Exiting. \n"; (*log).close();
@@ -683,7 +689,7 @@ cout  << "\n bind_irrev    = "    << bind_irrev << endl ;
 
 *log  << "\n NGtype     = "       << NGtype;
 
-*log  << "\n bind_irrev  = "       << bind_irrev; 
+*log  << "\n bind_irrev  = "       << bind_irrev;
 *log  << "\n fixed_ref   = "       << fixed_ref;
 *log  << "\n debugging   = "       << debugging;
 *log  << "\n BZ    = "             << BZcond;
@@ -734,8 +740,8 @@ for(i=0;i<numtrials;i++)
 		}
 	//------------------------------------------------------------------------------
 
-	(*simdat).tpoints_filling   = tpoints_filling; 
-	(*simdat).tpoints_eq        = tpoints_eq; 
+	(*simdat).tpoints_filling   = tpoints_filling;
+	(*simdat).tpoints_eq        = tpoints_eq;
 
 	//------------------------------------
 
@@ -759,9 +765,9 @@ for(i=0;i<numtrials;i++)
 		}
 
 		dt_inc=(1.0/(*simdat).a0)*gsl_sf_log(1.0/gsl_rng_uniform(r)); //---this is how much we step forward in time this time step.
-	
 
-		(*simdat).should_observe_filling(dt_inc, void_histogram, Z_all_t ) ; 
+
+		(*simdat).should_observe_filling(dt_inc, void_histogram, Z_all_t ) ;
 		// updates the filling and void-histograms.
 
 		if (get_voiddist_equilibrium)
@@ -769,14 +775,14 @@ for(i=0;i<numtrials;i++)
 //@			simdat->obs_count_eq_vdist += (*simdat).should_observe_equilibrium_voiddist( dt_inc, void_histogram_equilibrium  );
 			}
 
-		if ( output_patterns) 
+		if ( output_patterns)
 			{
 			(*simdat).should_observe_patterns(dt_inc);
 			}
 
 		(*simdat).t+=dt_inc;
 
-		if( (*simdat).t>tf) 
+		if( (*simdat).t>tf)
 			break;
 
 	//----necessary for deselection of certain reactions----
@@ -798,7 +804,7 @@ for(i=0;i<numtrials;i++)
 				goto reroll;
 				}
 
-			if(  Rtype >45 ) 
+			if(  Rtype >45 )
 				{
 				*log << "\n ERROR: reaction type exceeds our limit of 4\n";
 				cout << "\n ERROR: reaction type exceeds our limit of 4\n";
@@ -825,16 +831,16 @@ for(i=0;i<numtrials;i++)
 
 		//----------REDUNDANT ERROR CHECKING: -WE'RE CONFIDENT BY NOW -------------
 		// ---this should only be done if/when there is a discrepency discovered.
-		//	 (*simdat).check_rates(); 	
+		//	 (*simdat).check_rates();
 		//	 (*simdat).check_states();
 		//-------------------------------------------------------------------------
 
 		(*simdat).counter++;
 
-	}//--end the "while(t<tf)" -end of this simulation.	
+	}//--end the "while(t<tf)" -end of this simulation.
 
 	/*---------------DONE THE INDIVIDUAL RUN--------------------------------*/
-  			 
+
 	//-----------UPDATE OVERALL AVERAGES ----------------------------
 	if ( output_patterns) //---should we bother calculating the 2pc every time?
 		{
@@ -861,7 +867,7 @@ for(i=0;i<numtrials;i++)
 
 		}
       //-------------------------------------------------------
-      (*simdat).reset();    
+      (*simdat).reset();
       (*simdat).N_remod=0; //this has to be done manually, since reset is designed for
 			// other implementations and therefore cannot refer to N_remod.
 			// It only exists here, and must be dealt with uniquely here.
@@ -878,20 +884,20 @@ for(i=0;i<numtrials;i++)
 	{
 	*log << "\n at the end of run " << i << ", there were " << (*simdat).Nucnum << " particles in the system\n";
 
-	cout << "\n completed trial number " << i << " of " << numtrials << "; " << (100*(i)/numtrials) << "% done." ;	
-	*log << "\n completed trial number " << i << " of " << numtrials << "; " << (100*(i)/numtrials) << "% done." ;	
+	cout << "\n completed trial number " << i << " of " << numtrials << "; " << (100*(i)/numtrials) << "% done." ;
+	*log << "\n completed trial number " << i << " of " << numtrials << "; " << (100*(i)/numtrials) << "% done." ;
 	}
 
     delete simdat;
 
     if(calculate_entropy)
-	{	
+	{
 	for(j=0;j<total_obs_filling;j++)
-		{ //----reset configuration evaluation points to 'false' 
+		{ //----reset configuration evaluation points to 'false'
 		  //----(i.e. haven't looked at it yet.)
 		Z_all_t[j].tpoint_passed = false;
 		}
-	}		
+	}
     }//---this closes the for(i=0..numtrials) loops
 
 
@@ -901,7 +907,7 @@ for(i=0;i<numtrials;i++)
 //-------------------------DONE ALL THE TRIALS-----------------------
 
 // ! -----this was for nucleosomes---- : calc_void_statistics(  void_means, void_stddevs, Ncheck, void_histogram, total_obs_filling, Llim , CGF, numtrials);
-//! removed coarse-graining functionality 
+//! removed coarse-graining functionality
 calc_void_statistics(  void_means, void_stddevs, Ncheck, void_histogram, total_obs_filling, Llim , 1.0, numtrials);
 
 
@@ -933,10 +939,10 @@ for(i=0; i< total_obs_filling ; i++)
 
 //-----------------------------------------------------------------------------
 bool output_config_strings =true;
-ofstream configs_ti_t;	// ---- file stream to a t_index vs. tval for configstrings  
+ofstream configs_ti_t;	// ---- file stream to a t_index vs. tval for configstrings
 int Size_current_tvec;
 
-gsl_matrix * TM    = gsl_matrix_alloc (footprint+1, footprint+1); 
+gsl_matrix * TM    = gsl_matrix_alloc (footprint+1, footprint+1);
 gsl_matrix_set_zero(TM);
 
 gsl_matrix * Product = gsl_matrix_alloc (footprint+1, footprint+1);
@@ -956,13 +962,13 @@ if(calculate_entropy)
 
 //@@@@=----- delete
 // bren_print_gsl_matrix_to_stream( TM, cout);
-// cout << "\n that's the transfer matrix";	
+// cout << "\n that's the transfer matrix";
 // exit(1);
 //-=---------------
 
 
 	bren_matrix_pow(TM,Llim,Product);
-	
+
 	Zeq = bren_get_matrix_trace(Product);
 
 	if(std::isinf(Zeq))
@@ -973,7 +979,7 @@ if(calculate_entropy)
 		}
 
 	for(i=0;i<total_obs_filling;i++)
-		{ 
+		{
 		pnorm=0.0;
 		size_of_Zt = Z_all_t[i].Z_t.size() ;
 
@@ -989,7 +995,7 @@ if(calculate_entropy)
 			pt  = double(Z_all_t[i].Z_t.at(ii).pcount) / pnorm;
 			peq = gsl_sf_exp(-Z_all_t[i].Z_t.at(ii).E) / Zeq;
 
-			
+
 			Z_all_t[i].Hrel    += pt*gsl_sf_log(pt/peq);
 			Z_all_t[i].Snonrel += pt*gsl_sf_log(pt);
 
@@ -1013,23 +1019,23 @@ if(calculate_entropy)
 	//---------------NOW OUTPUT THE LIST OF CONFIGURATION COUNTS--------------
 	clear_charray(cpath, charlength );
 	sprintf(cpath, "%sthermostuff_configuration_sampling_tcols.txt",pathout.c_str());
-	
+
 	fentropyout = new ofstream(cpath);
 
 	for(j=0; j<get_first_N; j++)
 		{
 
 		for(i=0;i<total_obs_filling;i++)
-			{ 
+			{
 			*fentropyout << num_config_counts[i][j]  << " \t " ;
 			}
 
 		*fentropyout << endl ;
-		}	
+		}
 	(*fentropyout).close();
 	delete fentropyout;
 
-	//---------------NOW OUTPUT THE RESULTS OF THAT CALCULATION---------------	
+	//---------------NOW OUTPUT THE RESULTS OF THAT CALCULATION---------------
 
 	clear_charray(cpath, charlength );
 
@@ -1037,7 +1043,7 @@ if(calculate_entropy)
 	fentropyout = new ofstream(cpath);
 
 	for(i=0;i<total_obs_filling;i++)
-		{ 
+		{
 		*fentropyout << Z_all_t[i].tval << " \t " << (1.0/float(Llim))*Z_all_t[i].Snonrel  << " \t " << (1.0/float(Llim))*Z_all_t[i].Hrel << " \t " << (1.0/float(Llim))*Z_all_t[i].U << "\t" << (1.0/float(Llim))*Z_all_t[i].Utot << "\t" << (1.0/float(Llim))*Z_all_t[i].Nave <<  " \t " << peq_sum[i] << endl;
 		//----normalized by Llim now to imply energetic quantities PER LATTICE SITE.
 		}
@@ -1056,9 +1062,9 @@ if(calculate_entropy)
 		fentropyout = new ofstream;
 
 		for(i=0;i<total_obs_filling;i++)
-			{ 
+			{
 			configs_ti_t << i << "\t" <<  tpoints_filling[i] << endl;
- 
+
 			clear_charray(cpath, charlength );
 			sprintf(cpath, "%sconfigstrings_ti_%d.txt",pathout.c_str(),i);
 
@@ -1071,10 +1077,10 @@ if(calculate_entropy)
 				*fentropyout << Z_all_t[i].Z_t.at(j).pcount << endl;
 				}
 			(*fentropyout).close();
-			
+
 			}
 
-		delete fentropyout; 
+		delete fentropyout;
 
 		}
 	//--------------------------------------------------------------
@@ -1126,7 +1132,7 @@ if(output_patterns)	//---"patterns" refers to both 1-point and 2-point functions
 	(*favgout).close();
 	delete favgout;
 	//--------------------  NOW THE TRANSIENT VALUE --------------------
-	
+
 	clear_charray(cpath, charlength );
 	sprintf(cpath, "%sFixed-occ-hist-ti_x_N.txt",pathout.c_str() );
 	favgout = new ofstream(cpath);
@@ -1141,7 +1147,7 @@ if(output_patterns)	//---"patterns" refers to both 1-point and 2-point functions
 		}
 	(*favgout).close();
 	delete favgout;
-		
+
 	//------------------------------------------------------------------
 
 	}
@@ -1156,7 +1162,7 @@ if(output_patterns)
 	clear_charray(cpath, charlength );
 	if(!krm_b)
 		sprintf(cpath, "%stwopartcorr_eq_%s.txt",pathout.c_str(),NGtype.c_str());
-	else	
+	else
 		sprintf(cpath, "%stwopartcorr_eq_%s.txt",pathout.c_str(),NGtype.c_str());
 
 	favgout = new ofstream(cpath);
@@ -1171,7 +1177,7 @@ if(output_patterns)
 	clear_charray(cpath, charlength );
 	if(!krm_b)
 		sprintf(cpath, "%stwopartcorr_ti_%s.txt",pathout.c_str(),NGtype.c_str());
-	else	
+	else
 		sprintf(cpath, "%stwopartcorr_ti_%s.txt",pathout.c_str(),NGtype.c_str());
 
 	(*favgout).open(cpath);
@@ -1204,7 +1210,7 @@ if(output_filling)
 	for(j=0;j<total_obs_filling;j++)
 		{
 		*favgout << tpoints_filling[j] << " \t " << fillingfrac[j] << endl;
-		//--- NOTE: get_filling_frac() already scales out the filling frac by CGF upon computation. 
+		//--- NOTE: get_filling_frac() already scales out the filling frac by CGF upon computation.
 		//--- Hence, we  Don't need to do it again here.
 		}
 	(*favgout).close();
@@ -1274,8 +1280,8 @@ if(output_vdist_timepoints)
 			*favgout << (double(void_histogram[i][j]) /Nvoidstot[i])  << "\t";
 			*favgout2 << (double(void_histogram[i][j]) / ( double(Llim*numtrials) ))  << "\t";
 			}
-		*favgout  << endl;	//----produces columns of void sizes with common time points ('i') at each. 	
-		*favgout2 << endl;	//----the rows are then constant void size at increasing t. 
+		*favgout  << endl;	//----produces columns of void sizes with common time points ('i') at each.
+		*favgout2 << endl;	//----the rows are then constant void size at increasing t.
 		}
 
 
@@ -1304,7 +1310,7 @@ if (get_voiddist_equilibrium && Nvoidstotal_eq >=1 )
 	{
 	clear_charray(cpath, charlength );
 	sprintf(cpath, "%svoideq_dens_dist.txt",pathout.c_str() );
- 
+
 	favgout = new ofstream(cpath);
 
 
@@ -1320,11 +1326,11 @@ bool output_overshoot_phase_diag=true;
 //---try to use the explicitly equilibrium averages later.
 
 double maxrho  = get_array_max( NULL, fillingfrac , total_obs_filling);
-double rho_eq  = get_local_array_avg( fillingfrac, (total_obs_filling-1) -1 , 1); //--averages over the last 3 entries 
+double rho_eq  = get_local_array_avg( fillingfrac, (total_obs_filling-1) -1 , 1); //--averages over the last 3 entries
 
 // double rho_eq2 = (double(Nvoidstotal_eq)/double(total_obs_eq));
 
-//--- this will take the last 5 data points averaged. 
+//--- this will take the last 5 data points averaged.
 
 if(output_overshoot_phase_diag)
 	{
@@ -1333,7 +1339,7 @@ if(output_overshoot_phase_diag)
 
 	favgout = new ofstream(cpath);
 
-	
+
 
 	*favgout << muN << " \t " << E0 << " \t " << maxrho << " \t " << rho_eq << endl;
 
@@ -1404,7 +1410,7 @@ for(t_index=0; t_index<total_obs_filling; t_index++)
 //====================================================================================================
 
 if(should_plot_snapshots )
-	{	
+	{
 	(*timestamps).close();
 	}
 
@@ -1426,4 +1432,4 @@ delete log;
 cout << "\n\n program completed successfully.\n ";
 return 0;
 }
-                       
+

@@ -1,10 +1,12 @@
 # make macros: $@ = file name of target, $< = name of first dependency, $^ = names of all dependencies (separated by spaces, no duplicates)
+# the include and library paths below are intended to accomodate compilation on OSX
+
 
 CC = g++
-code_repo_path=/home/t30/ger/ga79moz/grad_research_phd/project/code_repository/
+code_repo_path=./code_repository/
 
-CFLAGS  = -I${code_repo_path} -ggdb -O2
-LDFLAGS = -lgsl -lgslcblas -lm
+CFLAGS  = -I${code_repo_path} -I/usr/local/Homebrew/Cellar/gsl/2.5/include/  -ggdb -O2
+LDFLAGS = -L/usr/local/Homebrew/Cellar/gsl/2.5/lib/  -lgsl -lgslcblas -lm
 
 DEPS = GA_GC_N.h ${code_repo_path}GA_absolute_standards.h ${code_repo_path}bren_lib.h
 OBJ  = GA_GC_N.obj GA_GC_N_progs.obj
