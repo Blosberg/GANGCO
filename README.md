@@ -28,7 +28,7 @@ I've tried to add documentation here, but can't promise it will be perfectly "us
 
 `[muN]` provides the binding affinity of particles ("nucleosomes"), which can be realistically set to something around 12 for now.
 
-`[eps]` describes the "stiffness" of particles, and is only relevant in the cases of "SNG" and "LNG". In the limit of infinite stiffness, the particles behave like "HNG" particles. A typical physical value would be `eps=0.15` 
+`[eps]` describes the "stiffness" of particles, and is only relevant in the cases of "SNG" and "LNG". In the limit of infinite stiffness, the particles behave like "HNG" particles. See PRL for precise definition; a physical around where interesting dynamics take place would be in the range of `eps=20-25`, if `muN` is set to around 20. Again see PRL for ranges. 
 
 # OUTPUT
 
