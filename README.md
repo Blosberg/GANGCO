@@ -30,6 +30,26 @@ I've tried to add documentation here, but can't promise it will be perfectly "us
 
 `[eps]` describes the "stiffness" of particles, and is only relevant in the cases of "SNG" and "LNG". In the limit of infinite stiffness, the particles behave like "HNG" particles. See PRL for precise definition; a physical around where interesting dynamics take place would be in the range of `eps=20-25`, if `muN` is set to around 20. Again see PRL for ranges. 
 
+In addition to the above arguments, various parameters (usually more constant) are defined in the input file. We can roughly list them as they are commented on in the main .cpp file:
+
+```
+kS_N  ; kA_N;  //--- intrinsic rate of sliding, adsorption for the primary species ("nucleosomes")
+Llim  ;  	//--- Size of the lattice in lattice sites, (after Coarse-graining), not necesarily == bp.
+t0   ; tf ;  t_trans ; dt_obs  //--- timepoints over which we look at the filling profile: start, finish; "transient" period after which we start assessing equilibrium properties, and dt_obs spacing in between.
+
+footprint ;	//--- size of particles on lattice. In the HNG case, we just take 'w' to mean 'k'
+
+krm_b                 ; krm_val;  // remodelling: boolean (should it be done at all?), and then with what rate.
+should_plot_snapshots ; Nplots2makeshort  ; Nplots2makelong; // plot distribution of gap sizes over the course of the process? if so how many.
+should_plot_kymo      ; Nplots2make_kymo; // plot kymograph? how finely resolved (See PNAS)
+BZcond                ; BZalpha;          // Application of Bolzmann condition to impose detailed balance. See PRL
+
+output_folder;  // Some descriptive prefix name for the output folder for this data set
+paritycheck;    // Dummy variable; always = 88885888. If any other value is read in for this variable, an error flag is triggered, indicating that some formatting error has been committed while reading in variables.
+
+numtrials;      // Number of times to repeat the whole simulation up to time tf. Larger numbers here means longer calculation time, but better averaging.
+```
+
 # OUTPUT
 
 Once the run is complete, a subdirectory using a name from the input file, and the input parameters will be created with various output results:
