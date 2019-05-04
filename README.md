@@ -8,7 +8,7 @@ As such, nucleosomes are inhibited from binding in the NFR (100-200), and prefer
 
 The code-base itself can handle a much broader range of activity (e.g. active remodelling enzymes that grab and move particles around, arbitrary interaction potentials between neighbouring particles of different species, energetic landscape effects, etc.), and another version of this simulation was also developped for adsorption/desorption in 2D. These features are turned off by default, but can easily be reactivated.
  
-If you would like to use this code for research purposes, please contact me. If you simply use it as is, I'd be content with a citation to the corresponding paper ( https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.115.088301 ), and perhaps an acknowledgement. If you would like me to adapt it to some specific use-case, or otherwise manage it for a project you are involved in, contact me, and we can discuss some arrangement for collaboration.
+If you would like to use this code for research purposes, please contact me. If you simply use it as is, I'd be content with a citation to [the corresponding paper]( https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.115.088301 ), and perhaps an acknowledgement. If you would like me to adapt it to some specific use-case, or otherwise manage it for a project you are involved in, contact me, and we can discuss some arrangement for collaboration. See below for potential applications.
 
 I've tried to add documentation here, but can't promise it will be perfectly "user-friendly" to a newcomer.
 
@@ -55,3 +55,7 @@ numtrials;      // Number of times to repeat the whole simulation up to time tf.
 Once the run is complete, a subdirectory using a name from the input file, and the input parameters will be created with various output results:
 In particular, the "filling.." file shows density vs. time -- I recommend you plot time on a logarithmic scale.
 Various other plots describe the profiles of gap-distribution between particles at various time points; the KL entropy; the 2-particle correlation between sizes of neighbouring gaps, and the overall frequency of occupation. For more details please get in touch.
+
+# Applications:
+
+The two most obvious remaining applications of this work are essentially unfinished projects described in my thesis. [Chapter 3](https://github.com/Blosberg/GA_GC/blob/master/BO_thesis_chap3.pdf) considers the interactions of two different species of interacting particles (such as, for example, nucleosomes and transcriptioin factors), while [chapter 4](https://github.com/Blosberg/GA_GC/blob/master/BO_thesis_chap4.pdf) outlines the problem of inferring the underlying energetic landscape of a subtrate for particle binding, given only the binding density, and a putative neighbour interaction. In both cases, there are preliminary results, but not yet enough for final publication. I have since moved on to other work, and don't have the time to finish these projects, but if you'd like to carry the torch the rest of the way, please get in touch.
