@@ -14,15 +14,15 @@ I've tried to add documentation here, but can't promise it will be perfectly "us
 
 # Installation:
 
-- To use this software, first clone this repository to your local machine, and then make sure that the GNU Scientific Library (GSL) is installed on your machine, and accessible on your "include" paths. You may need to adapt the Makefile that comes with this repo; I've tried to include paths to default directories for Homebrew. 
+- To use this software, first clone this repository to your local machine, and then make sure that the [GNU Scientific Library](https://www.gnu.org/software/gsl/) (GSL) is installed on your machine, and accessible on your "include" paths. You may need to adapt the Makefile that comes with this repo; I've tried to include paths to default directories for Homebrew. 
 
 - Then, go to the repo directory on your machine and type `$ make `. If you're doing this on an OSX machine, you will likely get a compiler-dependent warning about dynamic vector sizing that you can safely ignore. On linux machines it should install smoothly.
 
-- To run it, you should copy three files into your "Execution" directory. This is where all the data will come out, and you'll want to keep it separate from your scripts. The three files are the binary executable `GA_GC_N.x`, the input file `GA_GC_N.in`, and the seed for the random number generator `rngSEED.in`. Then navigate to your Execution directory and enter the following command, with 4 command line arguments:
+- To run it, you should copy three files into your "Execution" directory. This is where all the data will come out, and you'll want to keep it separate from your scripts. The three files are the executable `GA_GC_N.x`, the input file `GA_GC_N.in`, and the seed for the random number generator `rngSEED.in`. Then navigate to your Execution directory and enter the following command, with 4 command line arguments:
 
 ` $ ./GA_GC_N.x  [NGtype]  [TASKID]  [muN] [eps]`
 
-`[NGtype]` should have a value of either "HNG", "SNG", or "LNG", and describes the type of energetic interaction between neighbouring particles: "HNG" stands for "hard-core nucleosome gas" (i.e. mutual-exclusion), "SNG" stands for "soft-core nucleosome gas" (which implements the potential as described in https://www.pnas.org/content/110/14/5719), and "LNG" implements the "linear" potential, where interaction is directly proportional to proximity. 
+`[NGtype]` should have a value of either "HNG", "SNG", or "LNG", and describes the type of energetic interaction between neighbouring particles: "HNG" stands for "hard-core nucleosome gas" (i.e. mutual-exclusion), "SNG" stands for "soft-core nucleosome gas" (which implements the potential as described in https://www.pnas.org/content/110/14/5719), and "LNG" implements the "linear" potential, where interaction is directly proportional to proximity. Note: at some point in the project, the "SNG" label was used as a "stand-in" for the Lennard-Jones potential (since the SNG potential was not actually used in the PRL paper). Selection for this option was determined by a boolean `LJ` in the header file `code_repository/bren_lib.h` defined at compile time. 
 
 `[TASKID]` should just be set to 1 in this case; this variable is used for batch submission on SGE clusters, so that different runs can implement different parameters.
 
