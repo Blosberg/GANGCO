@@ -29,7 +29,7 @@ Depending on the relative significance of the code, or other input, I might just
 
 `[muN]` provides the binding affinity of particles ("nucleosomes"), which can be realistically set to something around 12 for now.
 
-`[eps]` describes the "stiffness" of particles, and is only relevant in the cases of "SNG" and "LNG". In the limit of infinite stiffness, the particles behave like "HNG" particles. See PRL for precise definition; a physical around where interesting dynamics take place would be in the range of `eps=20-25`, if `muN` is set to around 20. Again see PRL for ranges. 
+`[eps]` describes the "stiffness" of particles, and is only relevant in the cases of "SNG" and "LNG". In the limit of infinite stiffness, the particles behave like "HNG" particles. See PRL for precise definition; a regime around where interesting dynamics take place would be in the range of `eps=20-25`, if `muN` is set to around 20. Again see PRL for ranges. 
 
 In addition to the above arguments, various parameters (usually more constant) are defined in the input file. We can roughly list them as they are commented on in the main .cpp file:
 
@@ -43,10 +43,10 @@ footprint ;	//--- size of particles on lattice. In the HNG case, we just take 'w
 krm_b                 ; krm_val;  // remodelling: boolean (should it be done at all?), and then with what rate.
 should_plot_snapshots ; Nplots2makeshort  ; Nplots2makelong; // plot distribution of gap sizes over the course of the process? if so how many.
 should_plot_kymo      ; Nplots2make_kymo; // plot kymograph? how finely resolved (See PNAS)
-BZcond                ; BZalpha;          // Application of Bolzmann condition to impose detailed balance. See PRL
+BZcond                ; BZalpha;          // Application of Bolzmann condition to impose detailed balance. See PRL supplemental materials
 
-output_folder;  // Some descriptive prefix name for the output folder for this data set
-paritycheck;    // Dummy variable; always = 88885888. If any other value is read in for this variable, an error flag is triggered, indicating that some formatting error has been committed while reading in variables.
+output_folder;  // Some descriptive prefix name you would like to use for the output folder for this data set
+paritycheck;    // Dummy variable; always = 88885888. If any other value is read in for this variable, an error flag is triggered, indicating that some formatting error has been committed while reading in variables (in case you missed a value, or added too many).
 
 numtrials;      // Number of times to repeat the whole simulation up to time tf. Larger numbers here means longer calculation time, but better averaging.
 ```
@@ -59,5 +59,5 @@ Various other plots describe the profiles of gap-distribution between particles 
 
 # Applications:
 
-The most obvious remaining applications of this work are essentially unfinished projects described in my thesis. [Chapter 3](https://github.com/Blosberg/GA_GC/blob/master/BO_thesis_chap3.pdf) considers the interactions of two different species of interacting particles (such as, for example, nucleosomes and transcriptioin factors), while [chapter 4](https://github.com/Blosberg/GA_GC/blob/master/BO_thesis_chap4.pdf) outlines the problem of inferring the underlying energetic landscape of a subtrate for particle binding, given only the binding density, and a putative neighbour interaction. A final potential application concerns the correlation of neighbouring void-sizes in time.
-In all cases, there are preliminary results, but not yet enough for final publication. I have since moved on to other work, and don't have the time to finish these projects, but if you'd like to carry the torch the rest of the way, please get in touch.
+The most obvious remaining applications of this work are essentially unfinished projects described in my thesis. [Chapter 3](https://github.com/Blosberg/GA_GC/blob/master/BO_thesis_chap3.pdf) considers the interactions of two different species of interacting particles (such as, for example, nucleosomes and transcription factors), while [chapter 4](https://github.com/Blosberg/GA_GC/blob/master/BO_thesis_chap4.pdf) outlines the problem of inferring the underlying energetic landscape of a substrate for particle binding, given only the binding density, and a putative neighbour interaction. A final potential application concerns the correlation of neighbouring void-sizes in time.
+In all cases, there are preliminary results, but not yet enough for final publication. I have since moved on to other work, and don't have the time to finish these projects on my own, but if you'd like to carry the torch the rest of the way, please get in touch.
