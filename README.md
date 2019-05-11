@@ -5,11 +5,12 @@ A vido illustration of one such simulation is provided in the gif below; here we
 
 ![](GA_GC_movie.gif) 
 
-As such, nucleosomes are inhibited from binding in the NFR (100-200), and preferentially admitted to binding in the +1 regioni ( quasi-specifically bound near x~300), while TFs are preferentially bound in two arbitrarily chosen locations. Statistical positioning thereafter produces the familiar oscillatory pattern. A histogram of the time spent is shown below this region, while time progresses on a logarithmic scale.
+As such, nucleosomes are inhibited from binding in the NFR (100-200), and preferentially admitted to binding in the +1 region ( quasi-specifically bound near x~300), while TFs are preferentially bound in two arbitrarily chosen locations. Statistical positioning thereafter produces the familiar oscillatory pattern of nucleosome occupancy. A histogram of the time spent in each location is shown below this region, while time progresses on a logarithmic scale.
 
-The code-base itself can handle a much broader range of activity (e.g. active remodelling enzymes that grab and move particles around, arbitrary interaction potentials between neighbouring particles of different species, energetic landscape effects, etc.), and another version of this simulation was also developped for adsorption/desorption in 2D. These features are turned off by default, but can easily be reactivated.
+The code-base itself can handle a much broader range of activity (e.g. active remodelling enzymes that grab and move particles around; arbitrary interaction potentials between neighbouring particles of different species; non-uniform energetic landscape effects, etc.). These features are turned off by default, but can easily be reactivated. Another version of this simulation was also developped for adsorption/desorption on 2D surfaces.
 
-This code was written for my doctoral dissertation and was not originally intended to be made public. I stand by the scientific soundness of the results it produces, but cosmetically speaking, it does not conform to standard style guides. There are several outstanding applications I can think of for this work (see below), and if you would like to use this code for research purposes, please contact me, and I will try to be as helpful as possible. 
+This code was written for my doctoral dissertation and was not originally intended to be made public. I stand by the scientific soundness of the results it produces, but cosmetically speaking, it does not conform to standard style guides. 
+There are several outstanding applications I can think of for this work (see below), and if you would like to use this code for research purposes, please contact me, and I will try to be as helpful as possible. 
 Depending on the relative significance of the code, or other input, I might just ask for a citation to [the corresponding paper]( https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.115.088301 ), an acknowledgement, or a chance to join in an active collaboration. Just get in touch, and I'm sure we can find some fair way to allocate appropriate credit for everyone's work. 
 
 # Installation:
