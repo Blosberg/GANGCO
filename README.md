@@ -1,4 +1,5 @@
-Here is a repository of the necessary files to run the simulation of interacting 1-D particles, as implemented in my publications, using the Gillepsie Algorithm. For the deterministic mean-field equations using ODE time evolution, please see the accompanying repository: https://github.com/Blosberg/meanfield_void_numerics
+Here is a repository of the necessary files to run the simulation of interacting 1-D particles, as implemented in my publications. The initialism is intended to refer to the [G]illepsie [A]lgorithm implementation, in the [G]rand [C]anonical ensemble (with several files thereafter including an "N" label denoting nucleosomes). 
+For the deterministic mean-field equations using ODE time evolution, please see the accompanying repository: https://github.com/Blosberg/meanfield_void_numerics
 
 A vido illustration of one such simulation is provided in the gif below; here we see red, triangular particles representing nucleosomes, and green squares, representing (smaller) transcription factors adsorbing on simulated promoter region with a (simplified) realistic energetic binding landscape. 
 
@@ -7,10 +8,9 @@ A vido illustration of one such simulation is provided in the gif below; here we
 As such, nucleosomes are inhibited from binding in the NFR (100-200), and preferentially admitted to binding in the +1 regioni ( quasi-specifically bound near x~300), while TFs are preferentially bound in two arbitrarily chosen locations. Statistical positioning thereafter produces the familiar oscillatory pattern. A histogram of the time spent is shown below this region, while time progresses on a logarithmic scale.
 
 The code-base itself can handle a much broader range of activity (e.g. active remodelling enzymes that grab and move particles around, arbitrary interaction potentials between neighbouring particles of different species, energetic landscape effects, etc.), and another version of this simulation was also developped for adsorption/desorption in 2D. These features are turned off by default, but can easily be reactivated.
- 
-If you would like to use this code for research purposes, please contact me. If you simply use it as is, I'd be content with a citation to [the corresponding paper]( https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.115.088301 ), and perhaps an acknowledgement. If you would like me to adapt it to some specific use-case, or otherwise manage it for a project you are involved in, contact me, and we can discuss some arrangement for collaboration. See below for potential applications.
 
-I've tried to add documentation here, but can't promise it will be perfectly "user-friendly" to a newcomer.
+This code was written for my doctoral dissertation and was not originally intended to be made public. Scientifically speaking, I stand by the soundness of the results produced by this software; cosmetically speaking, it may not be "beautiful" code. There are several outstanding applications I can think of for this work (see below), and if you would like to use this code for research purposes, please contact me, and I will try to be as helpful as possible. 
+Depending on the relative significance of the code, or other input, I might just ask for a citation to [the corresponding paper]( https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.115.088301 ), an acknowledgement, or a chance to join in an active collaboration. Just get in touch, and I'm sure we can find some fair way to allocate appropriate credit for everyone's work. 
 
 # Installation:
 
@@ -18,7 +18,7 @@ I've tried to add documentation here, but can't promise it will be perfectly "us
 
 - Then, go to the repo directory on your machine and type `$ make `. If you're doing this on an OSX machine, you will likely get a compiler-dependent warning about dynamic vector sizing that you can safely ignore. On linux machines it should install smoothly.
 
-- To run it, you should copy three files into your "Execution" directory. This is where all the data will come out, and you'll want to keep it separate from your scripts. The three files are the executable `GA_GC_N.x`, the input file `GA_GC_N.in`, and the seed for the random number generator `rngSEED.in`. Then navigate to your Execution directory and enter the following command, with 4 command line arguments:
+- To run it, you should copy three files into your "Execution" directory (in the repo there's a folder called `test/`). This is where all the data will come out, and I find it cleaner to keep it separate from the other scripts. The three files are (1) the executable `GA_GC_N.x`, (2) the input file `GA_GC_N.in`, and (3) the seed for the random number generator `rngSEED.in`. Then navigate to your Execution directory and enter the following command, with 4 command line arguments:
 
 ` $ ./GA_GC_N.x  [NGtype]  [TASKID]  [muN] [eps]`
 
@@ -53,9 +53,10 @@ numtrials;      // Number of times to repeat the whole simulation up to time tf.
 # OUTPUT
 
 Once the run is complete, a subdirectory using a name from the input file, and the input parameters will be created with various output results:
-In particular, the "filling.." file shows density vs. time -- I recommend you plot time on a logarithmic scale.
+In particular, the "filling.." file shows two columns of density vs. time -- I recommend you plot time on a logarithmic scale.
 Various other plots describe the profiles of gap-distribution between particles at various time points; the KL entropy; the 2-particle correlation between sizes of neighbouring gaps, and the overall frequency of occupation. For more details please get in touch.
 
 # Applications:
 
-The two most obvious remaining applications of this work are essentially unfinished projects described in my thesis. [Chapter 3](https://github.com/Blosberg/GA_GC/blob/master/BO_thesis_chap3.pdf) considers the interactions of two different species of interacting particles (such as, for example, nucleosomes and transcriptioin factors), while [chapter 4](https://github.com/Blosberg/GA_GC/blob/master/BO_thesis_chap4.pdf) outlines the problem of inferring the underlying energetic landscape of a subtrate for particle binding, given only the binding density, and a putative neighbour interaction. In both cases, there are preliminary results, but not yet enough for final publication. I have since moved on to other work, and don't have the time to finish these projects, but if you'd like to carry the torch the rest of the way, please get in touch.
+The most obvious remaining applications of this work are essentially unfinished projects described in my thesis. [Chapter 3](https://github.com/Blosberg/GA_GC/blob/master/BO_thesis_chap3.pdf) considers the interactions of two different species of interacting particles (such as, for example, nucleosomes and transcriptioin factors), while [chapter 4](https://github.com/Blosberg/GA_GC/blob/master/BO_thesis_chap4.pdf) outlines the problem of inferring the underlying energetic landscape of a subtrate for particle binding, given only the binding density, and a putative neighbour interaction. A final potential application concerns the correlation of neighbouring void-sizes in time.
+In all cases, there are preliminary results, but not yet enough for final publication. I have since moved on to other work, and don't have the time to finish these projects, but if you'd like to carry the torch the rest of the way, please get in touch.
