@@ -60,7 +60,7 @@ Various other plots describe the profiles of gap-distribution between particles 
 # Applications:
 
 The most obvious remaining applications of this work are essentially unfinished projects described in my thesis. [Chapter 3](https://github.com/Blosberg/GA_GC/blob/master/BO_thesis_chap3.pdf) considers the interactions of two different species of interacting particles (such as, for example, nucleosomes and transcription factors), while [chapter 4](https://github.com/Blosberg/GA_GC/blob/master/BO_thesis_chap4.pdf) outlines the problem of inferring the underlying energetic landscape of a substrate for particle binding, given only the binding density, and a putative neighbour interaction. A final potential application concerns the correlation of neighbouring void-sizes in time.
-In all cases, there are preliminary results, but not yet enough for final publication. I have since moved on to other work, and don't have the time to finish these projects on my own, but if you'd like to carry the torch the rest of the way, please get in touch.
+In all cases, there are preliminary results, but not yet enough for final publication. I have since moved on to other work, and my current funding arrangement would not permit me to finish projects like this on my own.
 
 # Surface Adsorption (2D)
 
@@ -70,4 +70,4 @@ Examples of the filling process for hard exclusive particles is shown below:
 ![](filling_gif_2D_circs.gif) 
 ![](filling_gif_2D_squares.gif) 
 
-Naturally, the dynamics become much more interesting when soft-interactions are allowed, as the same algorithm has shown. This is as-yet unpublished work, however, and I'm looking for collaborations/support to finish this work. If you're interested, please get in touch. 
+Naturally, the dynamics become much more interesting when soft-interactions are allowed, as the same algorithm has shown. This is as-yet unpublished work, however, and I'm looking for collaborations/support to finish this work, and others mentioned above. If you're interested, please get in touch. 
