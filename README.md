@@ -19,7 +19,7 @@ Depending on the relative significance of the code, or other input, I might just
 
 - Then, go to the repo directory on your machine and type `make `. If you're doing this on an OSX machine, you will likely get a compiler-dependent warning about dynamic vector sizing that you can safely ignore. On linux machines it should install smoothly.
 
-- To run it, you should copy three files into your "Execution" directory (in the repo there's a folder called `test/`). This is where all the data will come out, and I find it cleaner to keep it separate from the other scripts. The three files are (1) the executable `GA_GC_N.x`, (2) the input file `GA_GC_N.in`, and (3) the seed for the random number generator `rngSEED.in`. Then navigate to your Execution directory and enter the following command, with 4 command line arguments:
+- To run it, you should copy three files into your "Execution" directory (in the repo there's a folder called `test/`). This is where all the data will come out, and I find it cleaner to keep it separate from the other scripts. The three files that you will need to copy there are (1) the executable `GA_GC_N.x`, (2) the input file `GA_GC_N.in`, and (3) the seed for the random number generator `rngSEED.in`. Then navigate to your Execution directory and enter the following command, with 4 command line arguments:
 
 ` $ ./GA_GC_N.x  [NGtype]  [TASKID]  [muN] [eps]`
 
