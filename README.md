@@ -1,11 +1,11 @@
-This repository contains a copy of all the necessary files to run the simulation of interacting 1-D particles, as implemented in my publications. The initialism is intended to refer to the [G]illepsie [A]lgorithm implementation, in the [G]rand [C]anonical ensemble. 
+This repository contains all of the necessary files to run the simulation of interacting 1-D particles, as implemented in some of my publications. The initialism is intended to refer to the [G]illepsie [A]lgorithm implementation, in the [G]rand [C]anonical ensemble. 
 For the deterministic mean-field equations using ODE time evolution, please see the accompanying repository: https://github.com/Blosberg/meanfield_void_numerics
 
-A vido illustration of an example simulation from this software is provided in the gif below; here we see red, triangular particles representing nucleosomes, and green squares, representing (smaller) transcription factors adsorbing on simulated promoter region with a (simplified) realistic energetic binding landscape. 
+An example simulation from this software is illustrated in the gif below; here we see red, triangular particles representing nucleosomes, and green squares, representing (smaller) transcription factors adsorbing on a simplified promoter region: 
 
 ![](GA_GC_movie.gif) 
 
-As such, nucleosomes are inhibited from binding in the NFR (100-200), and preferentially admitted to binding in the +1 region ( quasi-specifically bound near x~300), while TFs are preferentially bound in two arbitrarily chosen locations. Statistical positioning thereafter produces the familiar oscillatory pattern of nucleosome occupancy. A histogram of the time spent in each location is shown below this region, while time progresses on a logarithmic scale.
+In the above, nucleosomes are inhibited from binding in the NFR (100-200), and preferentially admitted to binding in the +1 region ( quasi-specifically bound near x~300), while TFs are preferentially bound in two arbitrarily chosen locations. Statistical positioning thereafter produces the familiar oscillatory pattern of nucleosome occupancy. A histogram of the time spent in each location is shown below this region, while time progresses on a logarithmic scale.
 
 The code-base itself can handle a much broader range of activity (e.g. active remodelling enzymes that grab and move particles around; arbitrary interaction potentials between neighbouring particles of different species; non-uniform energetic landscape effects, etc.). These features are turned off by default, but can easily be reactivated. Another version of this simulation was also developped for adsorption/desorption on 2D surfaces.
 
