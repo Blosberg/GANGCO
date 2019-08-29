@@ -1,4 +1,5 @@
-This repository contains all of the necessary files to run the simulation of interacting 1-D particles, as implemented in some of my publications. The initialism is intended to refer to the [G]illepsie [A]lgorithm implementation, in the [G]rand [C]anonical ensemble. 
+This repository contains all of the necessary files to run "GANGCO" -- a simulation of interacting 1-D particles, as implemented in some of my publications. The initialism is intended to refer to the [G]illepsie [A]lgorithm simulation of [N]ucleosomes, in the [G]rand [C]anonical ensemble. 
+
 For the deterministic mean-field equations using ODE time evolution, please see the accompanying repository: https://github.com/Blosberg/meanfield_void_numerics
 
 An example simulation from this software is illustrated in the gif below; here we see red, triangular particles representing nucleosomes, and green squares, representing (smaller) transcription factors adsorbing on a simplified promoter region: 
