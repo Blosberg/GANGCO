@@ -1,4 +1,4 @@
-This repository contains all of the necessary files to run "GANGCO" -- a simulation of interacting 1-D particles, as implemented in some of my publications. The initialism is intended to refer to the [G]illepsie [A]lgorithm simulation of [N]ucleosomes, in the [G]rand [C]anonical ensemble. You are free to use this software for any scholarly purpose, provided you include appropriate citation:
+This repository contains all of the necessary files to run "GANGCO" -- a simulation of interacting 1-D particles, as implemented in some of my publications. The initialism refers to the [G]illepsie [A]lgorithm simulation of [N]ucleosomes, in the [G]rand [C]anonical ensemble. You are free to use this software for any scholarly purpose, provided you include appropriate citation:
 ( [[1](https://www.pnas.org/content/110/14/5719)]
 [[2](https://academic.oup.com/nar/article/42/22/13633/2411303)]
 [[3](https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.115.088301)] ). For commercial use, please contact me directly.
