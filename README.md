@@ -32,7 +32,7 @@ Depending on the relative significance of the code, or other input, I might just
 
 `[muN]` provides the binding affinity of particles ("nucleosomes"), which can be realistically set to something around 12 for now.
 
-`[eps]` describes the "stiffness" of particles, and is only relevant in the cases of "SNG" and "LNG". In the limit of infinite stiffness, the particles behave like "HNG" particles. See PRL for precise definition; a regime around where interesting dynamics take place would be in the range of `eps=20-25`, if `muN` is set to around 20. Again see PRL for ranges. 
+`[eps]` describes the "stiffness" of particles, and is only relevant in the cases of "SNG" and "LNG". In the limit of infinite stiffness, the particles behave like "HNG" particles. See the PRL publication (linked above) for precise definition; a regime around where interesting dynamics take place would be in the range of `eps=20-25`, if `muN` is set to around 20. Again see the PRL paper for ranges. 
 
 In addition to the above arguments, various parameters (usually more constant) are defined in the input file. We can roughly list them as they are commented on in the main .cpp file:
 
