@@ -14,7 +14,7 @@ In the above, nucleosomes are inhibited from binding in the NFR (100-200), and p
 The code-base itself can handle a much broader range of activity (e.g. active remodelling enzymes that grab and move particles around; arbitrary interaction potentials between neighbouring particles of different species; non-uniform energetic landscape effects, etc.). These features are turned off by default, but can easily be reactivated. Another version of this simulation was also developped for adsorption/desorption on 2D surfaces (see below).
 
 This code was written for my doctoral dissertation and was not originally intended to be made public, however there are several outstanding applications I can think of for this work (see below), and if you would like to use this code for research purposes, please contact me, and I will try to be as helpful as possible. 
-Depending on the relative significance of the code, or other input, I might just ask for a citation to [the corresponding paper]( https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.115.088301 ), an acknowledgement, or a chance to join in an active collaboration. Just get in touch, and I'm sure we can find some fair way to allocate appropriate credit for everyone's work. 
+Depending on the relative significance of the code, or other input, I might just ask for a citation to [the corresponding paper]( https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.115.088301 ), an acknowledgement, or a chance to join in an active collaboration. Please do get in touch, and I'm sure we can find some fair way to allocate appropriate credit for everyone's work. 
 
 # Installation:
 
